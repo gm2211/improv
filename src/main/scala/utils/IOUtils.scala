@@ -3,9 +3,8 @@ package utils
 import java.io._
 
 import com.google.common.io.{ByteStreams, Files}
-import utils.ImplicitConversions.{toGuavaFunction, toGuavaPredicate}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object IOUtils {
@@ -57,11 +56,11 @@ object IOUtils {
   def filesInDir(dirPath: String): Try[List[String]] = {
     Try{
       val dir = new File(expandPath(dirPath))
-      Files.fileTreeTraverser()
-        .breadthFirstTraversal(dir)
+      Files.fileTraverser()
+        .breadthFirst(dir)
+        .asScala
         .filter((file: File) => file.isFile)
-        .transform((file: File) => file.getPath)
-        .toList
+        .map((file: File) => file.getPath)
         .toList
     }
   }
