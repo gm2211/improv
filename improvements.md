@@ -65,12 +65,28 @@ Nothing loads a soundbank, so playback through JFugue's `Player` (`actors/musici
 - Load a good `.sf2` SoundFont into the Java synthesizer before playback, or send the MIDI to FluidSynth or a DAW instead.
 - Add small random variation to note velocity and start time so repeated notes don't sound mechanical.
 
-## 5. A bigger change: a pretrained music model
+## 5. Bigger changes you build yourself
 
-The rating network learns from ratings typed in one phrase at a time (`demos/DemoCreateTrainingDataANN.scala`), so it will always have very little data. A pretrained symbolic music model could take over its job, in one of two ways:
+The rating network learns from ratings typed in one phrase at a time (`demos/DemoCreateTrainingDataANN.scala`), so it will always have very little data. Plugging in a pretrained music model would fix that, but it would skip the learning the project exists for. These options keep the learning in the project and build on what's already there.
 
-- **As the fitness function:** score each candidate by how likely it is as a continuation of what the other musicians just played.
-- **As the generator:** keep the case library as a style memory that conditions the model.
+### Train your own sequence model as the fitness function
+
+Train a model on the 76 songs in `src/main/resources/trainingMIDIs` and score each candidate by how likely it is as a continuation of what the other musicians just played.
+
+- Start with a variable-order Markov model over (melodic interval, duration) pairs. It's small, easy to inspect, and a classic in machine improvisation: Pachet's Continuator is built on one, and IRCAM's OMax uses a related structure, the factor oracle.
+- Then try a small LSTM trained from scratch on the same data, and compare the two by ear and by held-out likelihood.
+
+### Learn a fitness function without rating anything
+
+The case library already stores pairs of "this phrase, then what another instrument played next" taken from real songs (`training/DefaultMusicalCaseExtractor.scala`). Train a classifier to tell those real pairs from random pairings of the same phrases. That turns the existing corpus into unlimited training data for the fitness function, and it's a hands-on way to learn contrastive learning and negative sampling.
+
+### Rate phrases in pairs instead of one by one
+
+Asking "which of these two phrases is better?" gives more consistent answers than a score per phrase, so each answer is worth more. Fit a Bradley–Terry model, or a network with a pairwise ranking loss, to the answers. It's the same idea as the reward models used in RLHF, at a scale you can rate by hand in an evening.
+
+### Learn the similarity measure
+
+Use the same pairwise answers, or the real-versus-random pairs above, to learn the feature weights for phrase retrieval (metric learning) instead of tuning them by hand. That ties the case-based reasoning to what you've learned about quality: your own judgements, not hand-picked weights, decide what "similar" means for retrieval.
 
 ## Housekeeping: tests that open a browser
 
