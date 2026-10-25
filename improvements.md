@@ -88,6 +88,27 @@ Asking "which of these two phrases is better?" gives more consistent answers tha
 
 Use the same pairwise answers, or the real-versus-random pairs above, to learn the feature weights for phrase retrieval (metric learning) instead of tuning them by hand. That ties the case-based reasoning to what you've learned about quality: your own judgements, not hand-picked weights, decide what "similar" means for retrieval.
 
+## 6. Training data: keep MIDI, change the files
+
+Keep working with notes rather than audio. Every fix above works on notes: transposing to a shared key, snapping to bars, checking notes against chords, Markov models over intervals. Starting from audio would turn the project into transcription and source separation before any improvising happens.
+
+The weak point is the data, not the format. The 76 files in `src/main/resources/trainingMIDIs` are free hobbyist MIDI files:
+
+- **They're unreliable.** Tracks are often mislabelled or merged, there's no dependable key or chord information, and the timing is either rigidly quantised or sloppy.
+- **They're the wrong music.** They're mostly country and pop covers, which are accompaniment patterns rather than improvisation.
+
+Free, note-based datasets that fit better:
+
+- **Weimar Jazz Database:** 456 transcribed jazz solos with chord changes and beat positions. It's the closest match to an improvising musician, and its chords would give the Director a progression to follow (section 3).
+- **POP909:** 909 pop songs arranged for piano, with melody, chord and beat labels.
+- **Lakh MIDI Dataset:** about 176,000 MIDI files. Good for volume, but as noisy as the current files.
+- **MAESTRO:** about 200 hours of real piano performances, useful for learning expressive timing and loudness.
+
+Audio can still come in at the edges without giving up notes:
+
+- **Input:** a MIDI keyboard so a person can play with the orchestra, call-and-response style like Pachet's Continuator.
+- **Output:** train your own timbre model (DDSP-style) to turn the notes into realistic instrument sound. That would be an audio-learning project of its own, built on top of this one.
+
 ## Housekeeping: tests that open a browser
 
 `src/test/scala/KDTreePerformanceAnalysis.scala` and `src/test/scala/training/segmentation/LBDMSplitTimeFinderTest.scala` (line 40) plot with wisp (`com.quantifind.charts.Highcharts`). Wisp starts a local web server and opens a browser tab, so every full test run pops up charts, even with `-Djava.awt.headless=true`. The first file is a benchmark, not a test: move it out of the test sources, or tag it and exclude the tag by default. The LBDM test should check the split times without plotting.
