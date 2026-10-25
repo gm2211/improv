@@ -2,7 +2,7 @@ package storage
 
 import cbr.description.{CaseDescription, DescriptionCreator}
 import cbr.{CaseIndex, CaseSolutionStore}
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonFormat, JsonProperty}
 import net.sf.javaml.core.kdtree.KDTree
 import utils.ImplicitConversions.NotNullOption
 import utils.{IOUtils, SerialisationUtils}
@@ -57,6 +57,9 @@ object KDTreeIndex {
 
 
 @JsonCreator
+// CaseIndex is a Traversable. Newer jackson-module-scala versions treat Scala collections as JSON
+// arrays and can't rebuild this class from one; the OBJECT shape keeps it a plain JSON object.
+@JsonFormat(shape = JsonFormat.Shape.OBJECT)
 class KDTreeIndex[Problem] (
       @JsonProperty("store") private val store: CaseSolutionStore[Problem],
       @JsonProperty("descriptionCreator") override val descriptionCreator: DescriptionCreator[Problem],
