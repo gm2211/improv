@@ -40,7 +40,7 @@ object NeuralNetworks {
     neuralNet
   }
 
-  def load(filename: String = DEFAULT_ANN_PATH): Try[NeuralNetwork[_]] =
+  def load(filename: String = DEFAULT_ANN_PATH): Try[NeuralNetwork[?]] =
     Try(NeuralNetwork.createFromFile(new File(filename)))
 
 

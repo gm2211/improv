@@ -28,7 +28,7 @@ class BoredomBehaviour(
 
   override def apply(message: Message): Unit = message match {
     case sync: SyncMessage =>
-      boredom = boredomFunc(sync.time)
+      boredom = boredomFunc(sync.time.toDouble)
 
     case VoteRequest(sender, decisionType) =>
       val fromDirector = musician.exists(_.directorIdentity.exists(_.path == sender.path))

@@ -8,7 +8,7 @@ class FunctionalUtilsTest extends AnyFlatSpec {
   val fooCurr = (i: Int) => (s: String) => s"$s$i"
   
   "Flip" should "take a method with two parameters and return a function which has the parameters swapped" in {
-    val x = FunctionalUtils.flip(foo _)("a", 2)
+    val x = FunctionalUtils.flip(foo)("a", 2)
     val y = foo(2, "a")
     assert(x == y)
   }

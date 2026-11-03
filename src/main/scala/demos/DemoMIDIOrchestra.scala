@@ -12,8 +12,8 @@ import midi.JMusicMIDIParser
 import storage.KDTreeIndex
 import utils.UserInput
 
-object DemoMIDIOrchestra extends App{
-  run()
+object DemoMIDIOrchestra {
+  def main(args: Array[String]): Unit = run()
 
   private def createComposer(composerType: String)(filename: String, partNumber: Int) = {
     composerType match {

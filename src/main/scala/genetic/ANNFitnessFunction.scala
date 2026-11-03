@@ -12,13 +12,13 @@ object ANNFitnessFunction {
 }
 
 class ANNFitnessFunction(
-    neuralNet: NeuralNetwork[_],
+    neuralNet: NeuralNetwork[?],
     descriptionCreator: DescriptionCreator[MusicalCase] = new DefaultPhraseDescriptionCreator)
       extends FitnessFunction[MusicalCase] {
 
   override def apply(musicalCase: MusicalCase): Double = {
     val input = descriptionCreator.createCaseDescription(musicalCase).getSignature
-    neuralNet.setInput(input:_*)
+    neuralNet.setInput(input*)
     neuralNet.calculate()
     neuralNet.getOutput()(0)
   }

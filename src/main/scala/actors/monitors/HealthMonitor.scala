@@ -14,7 +14,7 @@ trait HealthMonitorFactory[A <: Count, B <: Count] {
 }
 
 trait HealthMonitor extends Monitor with Observable {
-  def receivedHeartbeat(actor: ActorRef)
+  def receivedHeartbeat(actor: ActorRef): Unit
   def isSystemHealthy: Boolean
   def isActorHealthy(actor: ActorRef): Boolean
   def getHealthyActors: List[ActorPath]

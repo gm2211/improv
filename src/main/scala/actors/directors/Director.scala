@@ -1,5 +1,6 @@
 package actors.directors
 
+import utils.collections.addBinding
 import org.apache.pekko.actor.{ActorRef, ActorLogging, Actor, ActorSystem}
 import messages.consensus.BinaryDecision.{No, Yes}
 import messages.consensus._

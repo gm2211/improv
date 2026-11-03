@@ -12,33 +12,34 @@ import utils.collections.CollectionUtils
 
 import scala.util.Try
 
-object DemoCreateTrainingDataANN extends Observer with App {
+object DemoCreateTrainingDataANN extends Observer {
   val DEFAULT_DB_PATH: String = ANNTrainingData.DEFAULT_DB_PATH
   val DEFAULT_SAVE_PATH: String = "/tmp/annData"
 
+  def main(args: Array[String]): Unit = {
+    val savePath = {
+      val path = scala.io.StdIn.readLine(s"Enter save path for output file[default:$DEFAULT_SAVE_PATH]: ")
+      Option(path).filter(_.trim.nonEmpty).getOrElse(DEFAULT_SAVE_PATH)
+    }
 
-  val savePath = {
-    val path = scala.io.StdIn.readLine(s"Enter save path for output file[default:$DEFAULT_SAVE_PATH]: ")
-    Option(path).filter(_.trim.nonEmpty).getOrElse(DEFAULT_SAVE_PATH)
+    val dbPath = {
+      val path = scala.io.StdIn.readLine(s"Choose dbPath [default:$DEFAULT_DB_PATH]: ")
+      Option(path).filter(_.trim.nonEmpty).getOrElse(DEFAULT_DB_PATH)
+    }
+
+    val restart = {
+      val restart = scala.io.StdIn.readLine("Do you want to start over [type YES!! to start over]:")
+      restart == "YES!!"
+    }
+
+    run(UserInput.chooseASong(), savePath, dbPath, restart)
   }
 
-  val dbPath = {
-    val path = scala.io.StdIn.readLine(s"Choose dbPath [default:$DEFAULT_DB_PATH]: ")
-    Option(path).filter(_.trim.nonEmpty).getOrElse(DEFAULT_DB_PATH)
-  }
-
-  val restart = {
-    val restart = scala.io.StdIn.readLine("Do you want to start over [type YES!! to start over]:")
-    restart == "YES!!"
-  }
-
-
-  run(UserInput.chooseASong(), savePath, dbPath, restart)
   def run(
       filename: String,
       savePath: String = DEFAULT_SAVE_PATH,
       dbLocation: String = DEFAULT_DB_PATH,
-      fromScratch: Boolean = false) = {
+      fromScratch: Boolean = false): Unit = {
     val extractor = new DefaultMusicalCaseExtractor(JMusicMIDIParser)
 
     val cases = extractor.getCases(filename)

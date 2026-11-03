@@ -5,7 +5,9 @@ import utils.collections.CollectionUtils
 
 import scala.util.Random
 
-object DemoDummyANN extends App {
+object DemoDummyANN {
+  def main(args: Array[String]): Unit = run()
+
   def run(): Unit = {
     val dimensions = 3
     val doubles: Array[Double] = Array.fill[Double](dimensions)(Random.nextDouble() * 10)
@@ -19,11 +21,10 @@ object DemoDummyANN extends App {
     println(data.toCSV)
     data.saveCSV("/tmp/dummy.csv")
     val net = NeuralNetworks.createNeurophDefault(List(data))
-    net.setInput(doubles: _*)
+    net.setInput(doubles*)
     net.calculate()
     CollectionUtils.print(net.getOutput)
     println("done")
 
   }
-  run()
 }

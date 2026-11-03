@@ -1,5 +1,6 @@
 package training.ann
 
+import utils.collections.addBinding
 import org.neuroph.core.data.DataSet
 import storage.MapDBMapStore
 import utils.collections.CollectionUtils

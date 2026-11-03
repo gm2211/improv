@@ -1,6 +1,6 @@
 name := "improv"
 version := "0.1.0"
-scalaVersion := "2.13.18"
+scalaVersion := "3.10.0"
 
 // Vendored jars (jfugue, jMusic, javaml, neuroph) in lib/ are picked up automatically as unmanaged jars.
 // neuroph stays on the vendored 2.9 jar: 2.98 (Maven Central) cannot read knowledgeBase/NN.nnet (serialVersionUID 6 vs 7) and changes DataSet.addRow/learn APIs.
@@ -50,4 +50,4 @@ Test / testOptions += Tests.Argument(
 Test / javaOptions += "-Djava.awt.headless=true"
 
 javacOptions ++= Seq("--release", "25")
-scalacOptions ++= Seq("-release", "25", "-deprecation", "-feature")
+scalacOptions ++= Seq("-java-output-version", "25", "-deprecation", "-feature")

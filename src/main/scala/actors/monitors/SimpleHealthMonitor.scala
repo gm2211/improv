@@ -52,7 +52,7 @@ object SimpleHealthMonitor {
 }
 
 class SimpleHealthMonitor(builder: SimpleHealthMonitorBuilder[AtLeastOnce, AtLeastOnce]) extends HealthMonitor {
-  private implicit val actorSystem = builder.actorSystem.get
+  private implicit val actorSystem: ActorSystem = builder.actorSystem.get
   val timeoutMS = builder.timeoutMS.getOrElse(SimpleHealthMonitor.DEFAULT_TIMEOUT_MS)
   private val statsMonitor: StatsMonitor = builder.statsMonitor.getOrElse(new SimpleStatsMonitor)
   private val heartbeatsCache = mutable.HashMap[ActorPath, Cancellable]()

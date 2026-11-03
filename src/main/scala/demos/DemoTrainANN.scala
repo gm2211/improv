@@ -9,7 +9,9 @@ import training.MusicalCaseExtractors
 import training.ann.{ANNTrainingData, NeuralNetworks}
 import utils.collections.CollectionUtils
 
-object DemoTrainANN extends App with Observer {
+object DemoTrainANN extends Observer {
+  def main(args: Array[String]): Unit = run()
+
   def run(): Unit = {
     val db = ANNTrainingData.loadDefaultDB
     val trainingData = db.keySet().map(db.get(_).get)
@@ -34,7 +36,7 @@ object DemoTrainANN extends App with Observer {
       }
 
       val description = descriptionCreator.createCaseDescription(musCase)
-      neuralNet.setInput(description.getSignature:_*)
+      neuralNet.setInput(description.getSignature*)
 
       neuralNet.calculate()
       val rating = neuralNet.getOutput

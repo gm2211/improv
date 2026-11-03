@@ -10,7 +10,7 @@ import tests.TestTags.SlowTest
 import scala.collection.mutable.ListBuffer
 
 class JFugueInstrumentTest extends AnyFlatSpec {
-  var instrument: JFugueInstrument = _
+  var instrument: JFugueInstrument = scala.compiletime.uninitialized
   val lock = new AnyRef
 
   def setup() = {

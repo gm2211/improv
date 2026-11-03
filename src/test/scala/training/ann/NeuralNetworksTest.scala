@@ -12,7 +12,7 @@ class NeuralNetworksTest extends AnyFlatSpec with Matchers {
     val outputs = network.getOutputsCount
     inputs should be > 0
 
-    network.setInput(Array.fill(inputs)(0.5): _*)
+    network.setInput(Array.fill(inputs)(0.5)*)
     network.calculate()
     val output = network.getOutput
 

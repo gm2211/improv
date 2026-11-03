@@ -14,7 +14,7 @@ import scala.collection.mutable
  * next sync message (this kind of acts like a sync barrier)
  */
 class JFugueSynchronizedPlayer extends Musician with ActorLogging {
-  private val musicInfoMessageCache: mutable.MultiMap[Long, MusicInfoMessage] = MultiCache.buildDefault(5000, 50)
+  private val musicInfoMessageCache: MultiCache[Long, MusicInfoMessage] = MultiCache.buildDefault(5000, 50)
   val player: Player = new Player()
 
   private def prepare(messages: mutable.Set[MusicInfoMessage]): String = {

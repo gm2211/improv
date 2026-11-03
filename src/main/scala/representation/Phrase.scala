@@ -147,7 +147,7 @@ object Phrase {
         durationNS = musicalElement.getDurationNS,
         startTimeNS = musicalElement.getStartTimeNS)
 
-      val availablePhrases = mutable.HashSet[Int](phrasesElements.indices.toArray:_*)
+      val availablePhrases = mutable.HashSet[Int](phrasesElements.indices.toArray*)
 
       activeElements ++= (1 to phrasesElements.size - activeElements.size).map(i => rest)
 
@@ -196,7 +196,7 @@ object Phrase {
     Option.when(phrase.polyphony)(mergePhrases(phrase.musicalElements.asInstanceOf[List[Phrase]])).getOrElse(phrase)
 
   def mergePhrases(phrases: Iterable[Phrase]): Phrase = {
-    val notesByStartTime = CollectionUtils.mergeMultiMaps(phrases.toList: _*)(getNotesByStartTimeNS)
+    val notesByStartTime = CollectionUtils.mergeMultiMaps(phrases.toList*)(using getNotesByStartTimeNS)
     val phraseElements = ListBuffer[MusicalElement]()
     var activeNotes: List[MusicalElement] = List()
     val endTimes = notesByStartTime.flatMap { case (startTime, notes) =>
@@ -322,10 +322,10 @@ case class Phrase(
     FunctionalUtils.memoized(Phrase.computeMaxChordSize)
 
   @transient private lazy val duration: MemoizedFunc[(Phrase, TimeUnit), BigInt] =
-    FunctionalUtils.memoized((Phrase.computeDuration _).tupled)
+    FunctionalUtils.memoized((Phrase.computeDuration).tupled)
 
   @transient private lazy val startTime: MemoizedFunc[(Phrase, TimeUnit), BigInt] =
-    FunctionalUtils.memoized((Phrase.computeStartTime _).tupled)
+    FunctionalUtils.memoized((Phrase.computeStartTime).tupled)
 
   require(! polyphony || canHavePolyphony)
 
@@ -386,7 +386,7 @@ case class Phrase(
   override def getDuration(timeUnit: TimeUnit): BigInt = duration((this, timeUnit))
   override def iterator: Iterator[MusicalElement] = musicalElements.iterator
 
-  override protected[this] def className: String = "Phrase"
+  override protected def className: String = "Phrase"
 
   override def foreach[U](f: (MusicalElement) => U): Unit = musicalElements.foreach(f)
   override def getStartTime(timeUnit: TimeUnit): BigInt = startTime((this, timeUnit))

@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
 object ActorUtils {
-  implicit val executionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+  implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
 
   def broadcast(message: Message)(implicit system: ActorSystem): Unit = system.eventStream.publish(message)
 
@@ -28,7 +28,7 @@ object ActorUtils {
     system.scheduler.scheduleOnce(delay, task)
   }
 
-  def subscribe(a: ActorRef, c: Class[_])(implicit sys: ActorSystem): Unit = {
+  def subscribe(a: ActorRef, c: Class[?])(implicit sys: ActorSystem): Unit = {
     sys.eventStream.subscribe(a, c)
   }
 }

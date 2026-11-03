@@ -1,5 +1,6 @@
 package midi
 
+import utils.collections.MultiMap
 import instruments.InstrumentType.InstrumentType
 import representation.Phrase
 
@@ -17,5 +18,5 @@ trait MIDIParser {
 
   def getAllMultiVoicePhrases: List[List[Phrase]]
 
-  def getPartIndexByInstrument: mutable.MultiMap[InstrumentType, Int]
+  def getPartIndexByInstrument: MultiMap[InstrumentType, Int]
 }

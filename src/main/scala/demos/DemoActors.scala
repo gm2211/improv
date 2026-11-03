@@ -11,7 +11,7 @@ object DemoActors {
   import scala.collection.mutable
 
   trait Listener {
-    def onDone()
+    def onDone(): Unit
   }
 
   class B {

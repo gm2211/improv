@@ -10,6 +10,7 @@ import utils.{IOUtils, SerialisationUtils}
 import scala.jdk.CollectionConverters._
 import scala.language.reflectiveCalls
 import scala.math
+import scala.reflect.ClassTag
 import scala.util.Try
 
 object KDTreeIndex {
@@ -17,7 +18,7 @@ object KDTreeIndex {
   private val DEFAULT_INDEX_RESOURCE: String = "knowledgeBase/caseIndex"
   private val DEFAULT_SOLUTION_STORE_RESOURCE: String = "knowledgeBase/solutionStore"
 
-  def create[Case: Manifest](
+  def create[Case: ClassTag](
       descriptionCreator: DescriptionCreator[Case],
       storeSavePath: String,
       indexSavePath: String): KDTreeIndex[Case] = {
@@ -25,25 +26,25 @@ object KDTreeIndex {
     new KDTreeIndex[Case](store, descriptionCreator, indexSavePath)
   }
 
-  def loadOrCreateDefault[Case : Manifest](
+  def loadOrCreateDefault[Case : ClassTag](
       descriptionCreator: DescriptionCreator[Case]): KDTreeIndex[Case] = {
     val loaded = load[Case](IOUtils.getResourcePath(DEFAULT_INDEX_RESOURCE))
     loaded.getOrElse(createDefault(descriptionCreator))
   }
 
-  def loadDefault[Case : Manifest]: Option[KDTreeIndex[Case]] = load(IOUtils.getResourcePath(DEFAULT_INDEX_RESOURCE))
+  def loadDefault[Case : ClassTag]: Option[KDTreeIndex[Case]] = load(IOUtils.getResourcePath(DEFAULT_INDEX_RESOURCE))
 
-  def load[Case : Manifest](filename: String): Option[KDTreeIndex[Case]] =
+  def load[Case : ClassTag](filename: String): Option[KDTreeIndex[Case]] =
     SerialisationUtils.deserialise[KDTreeIndex[Case]](filename).toOption
 
-  def createDefault[Case : Manifest](descriptionCreator: DescriptionCreator[Case]): KDTreeIndex[Case] = {
+  def createDefault[Case : ClassTag](descriptionCreator: DescriptionCreator[Case]): KDTreeIndex[Case] = {
     removeDefault()
     val storePath = IOUtils.getResourcePath(DEFAULT_SOLUTION_STORE_RESOURCE)
     val indexPath = IOUtils.getResourcePath(DEFAULT_INDEX_RESOURCE)
     create(descriptionCreator, storePath, indexPath)
   }
 
-  def loadOrCreate[Case : Manifest](
+  def loadOrCreate[Case : ClassTag](
       filename: String,
       descriptionCreator: DescriptionCreator[Case]): KDTreeIndex[Case] = {
     load(filename).getOrElse(createDefault(descriptionCreator))
@@ -72,7 +73,7 @@ class KDTreeIndex[Problem] (
       KDTreeIndex.DEFAULT_KDTREE_REBALANCING_THRESHOLD)
   }
 
- override def addSolutionToProblem(problemDescription: CaseDescription[Problem], solution: Solution): Unit = {
+  override def addSolutionToProblem(problemDescription: CaseDescription[Problem], solution: Solution): Unit = {
     val existingSolutions = searchExact(problemDescription)
     val storedSolutionID = store.addSolution(solution)
     val newSolutions = existingSolutions.getOrElse(List[String]()) :+ storedSolutionID

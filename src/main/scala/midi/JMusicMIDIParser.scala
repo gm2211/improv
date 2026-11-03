@@ -1,5 +1,6 @@
 package midi
 
+import utils.collections.MultiMap
 import instruments.InstrumentType
 import instruments.InstrumentType.InstrumentType
 import jm.music.data.Score
@@ -65,13 +66,13 @@ class JMusicMIDIParser(
 
   override def getMultiVoicePhrases(partNum: Int): List[Phrase] = getMultiVoicePhrasesM(partNum).toList
 
-  private val partIndexByInstrumentM = FunctionalUtils.memoized[mutable.MultiMap[InstrumentType, Int]]({
+  private val partIndexByInstrumentM = FunctionalUtils.memoized[MultiMap[InstrumentType, Int]]({
     val partsArray = score.getPartArray
     (0 until partsArray.size)
       .groupByMultiMap(index => InstrumentType.classify(partsArray(index).getInstrument))
   })
 
-  override def getPartIndexByInstrument: mutable.MultiMap[InstrumentType, Int] = partIndexByInstrumentM
+  override def getPartIndexByInstrument: MultiMap[InstrumentType, Int] = partIndexByInstrumentM
 
   def getInstrumentsCounts: Map[InstrumentType.InstrumentCategory, Int] = {
     val parts = score.getPartArray

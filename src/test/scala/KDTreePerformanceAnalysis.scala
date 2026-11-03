@@ -40,7 +40,7 @@ class KDTreePerformanceAnalysis extends AnyFlatSpec {
   }
 
   def flatKNN(elements: List[Array[Double]], target: Array[Double], k: Int): List[Array[Double]] = {
-    def distance = NumericUtils.euclid _
+    def distance = NumericUtils.euclid
     val sortedElements = elements.sortBy(distance(_, target))
     sortedElements.take(k)
 
