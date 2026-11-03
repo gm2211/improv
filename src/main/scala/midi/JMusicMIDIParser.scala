@@ -35,6 +35,9 @@ object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMI
   private def getScore(filename: String): Score = {
     val score: Score = new Score()
     Read.midi(score, filename)
+    // jMusic keeps one tempo per score, the last tempo event it read (or a garbled one, see MidiTempo): use the tempo
+    // the file spends the longest time in, which is what the phrase length in seconds is measured against (#23)
+    MidiTempo.longestLastingBPM(filename).foreach(score.setTempo)
     score
   }
 
