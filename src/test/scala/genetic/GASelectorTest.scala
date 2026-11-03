@@ -2,8 +2,12 @@ package genetic
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import genetic.GATestSupport.{CountingCrossover, identityChromosomes, improvingCrossover}
+import java.util.concurrent.ConcurrentLinkedQueue
+
+import genetic.GATestSupport.{CountingCrossover, averagingCrossover, identityChromosomes, improvingCrossover}
 import org.scalatest.flatspec.AnyFlatSpec
+
+import scala.jdk.CollectionConverters.*
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -16,7 +20,7 @@ class GASelectorTest extends AnyFlatSpec {
       geneticOperator: GeneticOperator[Int] = improvingCrossover,
       generations: Int = 20) =
     new GASelector[Int, Int](
-      fitnessFunction = fitnessFunction,
+      fitnessFunction = FitnessFunction.ignoringContext(fitnessFunction),
       stoppingCriteria = IterationLimitReached(generations),
       chromosomeGenerator = identityChromosomes,
       geneticOperator = geneticOperator)
@@ -24,13 +28,13 @@ class GASelectorTest extends AnyFlatSpec {
   "A GASelector" should "breed from the offspring of earlier generations, so that the population evolves" in {
     // A child is always one better than its better parent, so after one generation of breeding nothing can beat
     // max(candidates) + 1: a result beyond that has to come from children of children
-    val best = selector().selectSolution(None, candidates, Nil)
+    val best = selector().selectSolution(None, candidates, Nil, Nil)
 
     assert(best.exists(_ > candidates.max + 1), s"$best did not evolve past ${candidates.max + 1}")
   }
 
   it should "not evolve past the candidates when told to stop before the first generation" in {
-    val best = selector(generations = 0).selectSolution(None, candidates, Nil)
+    val best = selector(generations = 0).selectSolution(None, candidates, Nil, Nil)
 
     assert(best.contains(candidates.max))
   }
@@ -41,7 +45,7 @@ class GASelectorTest extends AnyFlatSpec {
     val gaSelector = selector(geneticOperator = crossover, generations = generations)
     val survivors = (candidates.size * gaSelector.survivalRate).toInt
 
-    gaSelector.selectSolution(None, candidates, Nil)
+    gaSelector.selectSolution(None, candidates, Nil, Nil)
 
     assert(crossover.calls == generations * (candidates.size - survivors))
   }
@@ -55,7 +59,7 @@ class GASelectorTest extends AnyFlatSpec {
       geneticOperator = crossover,
       generations = generations)
 
-    gaSelector.selectSolution(None, candidates, Nil)
+    gaSelector.selectSolution(None, candidates, Nil, Nil)
 
     assert(ratings.get == candidates.size + crossover.calls)
   }
@@ -65,7 +69,7 @@ class GASelectorTest extends AnyFlatSpec {
     for (size <- List(1, 2, 3, 10, 50)) {
       val crossover = new CountingCrossover
       val result = selector(geneticOperator = crossover, generations = 3)
-        .selectSolution(None, (1 to size).toList, Nil)
+        .selectSolution(None, (1 to size).toList, Nil, Nil)
 
       assert(result.isDefined, s"no solution for $size candidates")
       assert(crossover.calls <= 3 * size, s"${crossover.calls} children were bred from $size candidates")
@@ -73,17 +77,17 @@ class GASelectorTest extends AnyFlatSpec {
   }
 
   it should "select the only candidate when there is just one" in {
-    assert(selector().selectSolution(None, List(5), Nil).isDefined)
+    assert(selector().selectSolution(None, List(5), Nil, Nil).isDefined)
   }
 
   it should "select nothing when there are no candidates" in {
-    assert(selector().selectSolution(None, Nil, Nil).isEmpty)
+    assert(selector().selectSolution(None, Nil, Nil, Nil).isEmpty)
   }
 
   it should "still select a solution when every candidate has a fitness of zero" in {
     import ExecutionContext.Implicits.global
 
-    val solution = Future(selector(fitnessFunction = _ => 0.0).selectSolution(None, candidates, Nil))
+    val solution = Future(selector(fitnessFunction = _ => 0.0).selectSolution(None, candidates, Nil, Nil))
 
     assert(Await.result(solution, 10.seconds).isDefined)
   }
@@ -92,7 +96,7 @@ class GASelectorTest extends AnyFlatSpec {
     import ExecutionContext.Implicits.global
 
     val solution = Future(selector(fitnessFunction = n => if (n % 2 == 0) Double.NaN else n.toDouble)
-      .selectSolution(None, candidates, Nil))
+      .selectSolution(None, candidates, Nil, Nil))
 
     val selected = Await.result(solution, 10.seconds)
     assert(selected.exists(_ % 2 == 1), s"$selected has no fitness or is not a candidate")
@@ -120,4 +124,77 @@ class GASelectorTest extends AnyFlatSpec {
     // The fitter parent wins a tournament of two unless it is drawn neither time (1 in 4)
     assert(children.count(_ == 2) > children.count(_ == 1) * 2)
   }
+
+  "A GASelector's fitness function" should "be handed the phrases by the others and the previous solution" in {
+    val seen = new ConcurrentLinkedQueue[(Int, FitnessContext[Int])]()
+    val gaSelector = selectorWithContextualFitness { (candidate, context) =>
+      seen.add((candidate, context))
+      candidate.toDouble
+    }
+
+    gaSelector.selectSolution(Some(3), candidates, Nil, List(100, 200))
+
+    val ratings = seen.asScala.toList
+    assert(ratings.nonEmpty)
+    assert(ratings.forall { case (_, context) => context == FitnessContext(List(100, 200), Some(3)) })
+    candidates.foreach(candidate => assert(ratings.exists(_._1 == candidate), s"$candidate was never rated"))
+  }
+
+  it should "be handed the same context for the children that are bred, not just for the candidates" in {
+    val seen = new ConcurrentLinkedQueue[(Int, FitnessContext[Int])]()
+    val gaSelector = selectorWithContextualFitness({ (candidate, context) =>
+      seen.add((candidate, context))
+      candidate.toDouble
+    }, improvingCrossover)
+
+    gaSelector.selectSolution(Some(3), candidates, Nil, List(100, 200))
+
+    val childRatings = seen.asScala.filter(_._1 > candidates.max)
+    assert(childRatings.nonEmpty)
+    assert(childRatings.forall(_._2 == FitnessContext(List(100, 200), Some(3))))
+  }
+
+  it should "be handed an empty context when nobody played and there is no previous solution" in {
+    val seen = new ConcurrentLinkedQueue[FitnessContext[Int]]()
+    val gaSelector = selectorWithContextualFitness { (candidate, context) =>
+      seen.add(context)
+      candidate.toDouble
+    }
+
+    gaSelector.selectSolution(None, candidates, Nil, Nil)
+
+    assert(seen.asScala.nonEmpty)
+    assert(seen.asScala.forall(_ == FitnessContext[Int](Nil, None)))
+  }
+
+  it should "be handed the phrases by the others whatever collection they come in" in {
+    val seen = new ConcurrentLinkedQueue[FitnessContext[Int]]()
+    val gaSelector = selectorWithContextualFitness { (candidate, context) =>
+      seen.add(context)
+      candidate.toDouble
+    }
+
+    gaSelector.selectSolution(None, candidates, Nil, Set(100, 200))
+
+    assert(seen.asScala.forall(_.phrasesByOthers.toSet == Set(100, 200)))
+  }
+
+  it should "be able to change what is selected according to what the candidates respond to" in {
+    // The closer a candidate is to the (only) phrase by the others, the fitter it is
+    val gaSelector = selectorWithContextualFitness { (candidate, context) =>
+      1.0 / (1.0 + scala.math.abs(candidate - context.phrasesByOthers.head))
+    }
+    def answerTo(phraseByOther: Int) = gaSelector.selectSolution(None, candidates, Nil, List(phraseByOther)).get
+
+    assert(List.fill(20)(answerTo(3)).forall(_ <= 8))
+    assert(List.fill(20)(answerTo(18)).forall(_ >= 13))
+  }
+
+  private def selectorWithContextualFitness(
+      fitnessFunction: (Int, FitnessContext[Int]) => Double,
+      geneticOperator: GeneticOperator[Int] = averagingCrossover) =
+    new GASelector[Int, Int](
+      fitnessFunction = fitnessFunction,
+      chromosomeGenerator = identityChromosomes,
+      geneticOperator = geneticOperator)
 }
