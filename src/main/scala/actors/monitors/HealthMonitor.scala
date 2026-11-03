@@ -1,6 +1,6 @@
 package actors.monitors
 
-import akka.actor.{ActorPath, ActorRef, ActorSystem}
+import org.apache.pekko.actor.{ActorPath, ActorRef, ActorSystem}
 import designPatterns.observer.Observable
 import utils.builders._
 

@@ -57,7 +57,7 @@ object DemoCreateTrainingDataANN extends Observer with App {
 
     if (fromScratch) trainingData.clear()
 
-    for ((_, sol) <- cases.toStream.drop(trainingData.dataPointsCount).takeWhile( _ => continue)) {
+    for ((_, sol) <- cases.to(LazyList).drop(trainingData.dataPointsCount).takeWhile( _ => continue)) {
       println(s"Melody #$currMelodyIdx out of ${cases.size}")
       val seq = JFugueUtils.toSequence(sol.phrase, sol.instrumentType)
       player.play(seq)

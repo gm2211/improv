@@ -1,7 +1,7 @@
 package actors.directors
 
 import actors.monitors.{HealthMonitor, HealthMonitorFactory, SimpleHealthMonitor}
-import akka.actor._
+import org.apache.pekko.actor._
 import designPatterns.observer.{EventNotification, Observer}
 import messages._
 import messages.consensus.DecisionType

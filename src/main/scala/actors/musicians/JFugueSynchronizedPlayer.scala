@@ -1,6 +1,6 @@
 package actors.musicians
 
-import akka.actor.ActorLogging
+import org.apache.pekko.actor.ActorLogging
 import instruments.JFugueUtils
 import messages.{MusicInfoMessage, SyncMessage}
 import org.jfugue.player.Player

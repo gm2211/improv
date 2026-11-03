@@ -2,7 +2,7 @@ package actors.musicians
 
 import actors.composers.{Composer, RandomComposer}
 import actors.musicians.behaviour._
-import akka.actor.{ActorLogging, ActorRef, ActorSystem, Props}
+import org.apache.pekko.actor.{ActorLogging, ActorRef, ActorSystem, Props}
 import cbr.MusicalCase
 import designPatterns.observer.{EventNotification, Observer}
 import instruments.{AsyncInstrument, Instrument}

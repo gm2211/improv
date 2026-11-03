@@ -1,6 +1,6 @@
 package actors.directors
 
-import akka.actor.{ActorRef, ActorLogging, Actor, ActorSystem}
+import org.apache.pekko.actor.{ActorRef, ActorLogging, Actor, ActorSystem}
 import messages.consensus.BinaryDecision.{No, Yes}
 import messages.consensus._
 import messages.{Start, Stop}
@@ -73,7 +73,7 @@ trait Director extends Actor with ActorLogging {
         case Yes =>
           ActorUtils.broadcast(FinalDecision(self, decision))
           stop()
-          actorSystem.shutdown()
+          actorSystem.terminate()
         case _ =>
       }
 

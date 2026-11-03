@@ -9,3 +9,9 @@ log/
 *.iws
 **/*.swp
 **/*.log
+target/
+.bsp/
+.worktrees/
+project/target/
+project/project/
+src/main/resources/knowledgeBase/*.wal.*

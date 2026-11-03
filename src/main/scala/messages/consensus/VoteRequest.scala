@@ -1,6 +1,6 @@
 package messages.consensus
 
-import akka.actor.ActorRef
+import org.apache.pekko.actor.ActorRef
 
 case class VoteRequest(
   override val sender: ActorRef, 

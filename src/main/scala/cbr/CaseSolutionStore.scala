@@ -2,20 +2,19 @@ package cbr
 
 import java.util.UUID
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties, JsonTypeInfo}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
+@JsonIgnoreProperties(Array("map"))
 trait CaseSolutionStore[CaseSolution] {
 
+  // Lazily loaded on first use. Kept out of Jackson (a var in a trait leaks into the JSON on
+  // Scala 2.13, where the field annotation is not carried over, so the lazy val is also transient).
   @JsonIgnore
-  private var map: Option[MapStore[String, CaseSolution]] = None
+  @transient
+  private lazy val map: MapStore[String, CaseSolution] = loadMap
 
-  private def getMap = {
-    if (map.isEmpty) {
-      map = Some(loadMap)
-    }
-    map.get
-  }
+  private def getMap = map
 
   /**
    * Loads the underlying map

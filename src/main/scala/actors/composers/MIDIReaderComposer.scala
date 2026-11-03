@@ -35,7 +35,7 @@ class MIDIReaderComposer(builder: MIDIReaderComposerBuilder[AtLeastOnce, AtLeast
 
   override def compose(
       previousPhrase: Option[MusicalCase] = None,
-      phrasesByOthers: Traversable[MusicalCase],
+      phrasesByOthers: Iterable[MusicalCase],
       constraints: List[MusicalCase => Boolean]): Option[Phrase] = {
     if (phraseIterator.hasNext)
       Some(phraseIterator.next())

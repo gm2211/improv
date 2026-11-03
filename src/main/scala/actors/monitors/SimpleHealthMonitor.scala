@@ -1,6 +1,6 @@
 package actors.monitors
 
-import akka.actor._
+import org.apache.pekko.actor._
 import designPatterns.observer.EventNotification
 import messages.MusicInfoMessage
 import utils.ActorUtils

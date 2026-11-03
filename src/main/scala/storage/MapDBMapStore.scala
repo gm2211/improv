@@ -6,7 +6,7 @@ import cbr.MapStore
 import com.google.common.io.Files
 import org.mapdb.{DB, DBMaker, HTreeMap}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
 object MapDBMapStore {
   def loadFromFile[K, V](filename: String) = {
@@ -25,11 +25,11 @@ class MapDBMapStore[K, V](private val db: DB, mapName: String) extends MapStore[
 
   override def put(key: K, value: V): Unit = db_map.put(key, value)
 
-  override def removeAll(): Unit = db_map.keySet().foreach(db_map.remove)
+  override def removeAll(): Unit = db_map.keySet().asScala.toList.foreach(k => db_map.remove(k))
 
   def contains(key: K): Boolean = db_map.containsKey(key)
 
-  def keySet(): Set[K] = db_map.keySet().toSet
+  def keySet(): Set[K] = db_map.keySet().asScala.toSet
 
   def close(): Unit = db.close()
 

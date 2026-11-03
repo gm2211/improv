@@ -56,11 +56,11 @@ object CollectionUtils {
     Try(elements.groupBy(identity).maxBy(_._2.size)._1).toOption
   }
 
-  def print[Elem](elements: Traversable[Elem]): Unit = {
+  def print[Elem](elements: Iterable[Elem]): Unit = {
     println(s"{${elements.mkString(",")}}")
   }
 
-  def printNewLine[Elem](elements: Traversable[Elem]): Unit = {
+  def printNewLine[Elem](elements: Iterable[Elem]): Unit = {
     println(s"{${elements.mkString(",\n")}}")
   }
 }

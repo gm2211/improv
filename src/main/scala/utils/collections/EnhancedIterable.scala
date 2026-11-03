@@ -1,6 +1,5 @@
 package utils.collections
 
-import scala.collection.generic.FilterMonadic
 import scala.collection.mutable
 import scala.util.Try
 
@@ -25,25 +24,25 @@ class EnhancedIterable[A](val iterable: Iterable[A]) {
    * @return
    */
   def foldLeftWithFstAsDefault[K](defaultValue: K, defValFN: A => K, fn: (K, A) => K): K = {
-    val defValue: K = iterable.toStream.headOption.map(defValFN).getOrElse(defaultValue)
+    val defValue: K = iterable.headOption.map(defValFN).getOrElse(defaultValue)
     iterable.foldLeft[K](defValue)(fn)
   }
 
   def sumBy[K](defaultValue: K, fn: A => K)(implicit num: Numeric[K]): K =
     iterable.foldLeft[K](defaultValue) { case (acc, elem) => num.plus(acc, fn(elem)) }
 
-  def zipped[K](implicit evidence: A => Traversable[K]): Stream[List[Option[K]]] = {
+  def zipped[K](implicit evidence: A => Iterable[K]): LazyList[List[Option[K]]] = {
     val elemSize = iterable.maxBy{ case e => e.size }.size
-    val iterators = iterable.map(_.toIterator).toList
-    (0 until elemSize).toStream.map{ case i =>
+    val iterators = iterable.map(_.iterator).toList
+    (0 until elemSize).to(LazyList).map{ case i =>
       iterators.map(iter => Try{ iter.next() }.toOption)
     }
   }
 
-  def zipped[K](defaultValue: K)(implicit evidence: A => Traversable[K]): Stream[List[K]] = {
+  def zipped[K](defaultValue: K)(implicit evidence: A => Iterable[K]): LazyList[List[K]] = {
     val elemSize = iterable.maxBy{ case e => e.size }.size
-    val iterators = iterable.map(_.toIterator).toList
-    (0 until elemSize).toStream.map{ case i =>
+    val iterators = iterable.map(_.iterator).toList
+    (0 until elemSize).to(LazyList).map{ case i =>
       iterators.map(iter => Try{ iter.next() }.getOrElse(defaultValue))
     }
   }
@@ -65,18 +64,18 @@ class EnhancedIterable[A](val iterable: Iterable[A]) {
 
   def inBounds(idx: Int): Boolean = (0 until iterable.size) contains idx
 
-  def withFilters(filters: Traversable[A => Boolean]) = {
-    var filteredTraversable: FilterMonadic[A, Iterable[A]] = iterable
-    filters.foreach(filter => filteredTraversable = filteredTraversable.withFilter(filter))
-    filteredTraversable
+  def withFilters(filters: Iterable[A => Boolean]): Iterable[A] = {
+    var filtered: Iterable[A] = iterable
+    filters.foreach(filter => filtered = filtered.filter(filter))
+    filtered
   }
 
-  def filter(filters: Traversable[A => Boolean]): Iterable[A] = {
-    withFilters(filters).map(identity)
+  def filter(filters: Iterable[A => Boolean]): Iterable[A] = {
+    withFilters(filters)
   }
 
-  def withTypeFilter[T : Manifest]: FilterMonadic[A, Iterable[A]] = {
-    iterable.withFilter{
+  def withTypeFilter[T : Manifest]: Iterable[A] = {
+    iterable.filter{
       case elem: T => true
       case _ => false
     }

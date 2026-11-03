@@ -1,7 +1,6 @@
 package utils.collections
 
 import scala.collection.mutable.ListBuffer
-import scalaz.Scalaz._
 
 object BoundedStack {
   def apply[T](bound: Int): BoundedStack[T] = new BoundedStack[T](bound)
@@ -18,7 +17,7 @@ class BoundedStack[T](private val bound: Int) {
   }
 
   def pop: Option[T] = {
-    lst.nonEmpty.option {
+    Option.when(lst.nonEmpty) {
       val elem = lst.last
       lst.remove(lst.size - 1)
       elem
@@ -26,7 +25,7 @@ class BoundedStack[T](private val bound: Int) {
   }
 
   def peek: Option[T] = {
-    lst.nonEmpty.option {
+    Option.when(lst.nonEmpty) {
       lst.last
     }
   }

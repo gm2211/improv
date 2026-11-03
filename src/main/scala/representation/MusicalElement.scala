@@ -1,7 +1,6 @@
 package representation
 
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
-import scalaz.Scalaz._
 
 object MusicalElement {
   val DEFAULT_TEMPO_BPM = 120.0
@@ -25,16 +24,14 @@ object MusicalElement {
     elem.getStartTimeNS <= timeNS && timeNS < elem.getStartTimeNS + elem.getDurationNS
 
   def resizeIfActive(newStartTimeNS: BigInt, elem: MusicalElement): Option[MusicalElement] = {
-    MusicalElement.isActive(newStartTimeNS, elem).fold(
-      fromNewStartTimeToPreviousEndTime(elem, newStartTimeNS),
-      None
-    )
+    if (MusicalElement.isActive(newStartTimeNS, elem)) fromNewStartTimeToPreviousEndTime(elem, newStartTimeNS)
+    else None
   }
 
   def fromNewStartTimeToPreviousEndTime(elem: MusicalElement, newStartTimeNS: BigInt): Option[MusicalElement] = {
     require(newStartTimeNS > 0)
     val newDuration: BigInt = elem.getEndTimeNS - newStartTimeNS
-    (newDuration > 0).option {
+    Option.when(newDuration > 0) {
       elem
         .withStartTime(newStartTimeNS)
         .withDuration(newDuration)
@@ -44,7 +41,7 @@ object MusicalElement {
   def fromPreviousStartTimeToNewEndTime(elem: MusicalElement, newEndTimeNS: BigInt): Option[MusicalElement] = {
     require(newEndTimeNS > 0)
     val newDuration = newEndTimeNS - elem.getStartTimeNS
-    (newDuration > 0).option(elem.withDuration(newDuration))
+    Option.when(newDuration > 0)(elem.withDuration(newDuration))
   }
 
   def split(elem: MusicalElement, splitTimeNS: BigInt): (Option[MusicalElement], Option[MusicalElement]) = {

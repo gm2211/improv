@@ -18,7 +18,7 @@ class LBDMSplitTimeFinder(private val mergePolyphonic: Boolean = true) extends S
   private val ioiWeight = LBDMSplitTimeFinder.DEFAULT_IOI_WEIGHT
   private val restsWeight = LBDMSplitTimeFinder.DEFAULT_RESTS_WEIGHT
 
-  override def getSplitTimes(originalPhrase: Phrase): Traversable[BigInt] = {
+  override def getSplitTimes(originalPhrase: Phrase): Iterable[BigInt] = {
     val phrase = processPolyphonic(originalPhrase)
     val overallProfile = computeProfile(phrase)
     val peaks = NumericUtils.findPeaks(overallProfile)

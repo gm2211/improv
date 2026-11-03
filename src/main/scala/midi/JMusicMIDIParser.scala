@@ -14,11 +14,11 @@ import utils.NumericUtils
 import utils.collections.CollectionUtils
 import utils.functional.FunctionalUtils
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
+import scala.collection.mutable.ListBuffer
 import scala.collection.mutable
 import scala.concurrent.duration.{NANOSECONDS, TimeUnit}
 import scala.util.Try
-import scalaz.Scalaz._
 
 object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMIDIParser] {
   override def apply(filename: String) = {
@@ -42,7 +42,7 @@ class JMusicMIDIParser(
   val score: jmData.Score,
   val phraseSegmenter: PhraseSegmenter) extends MIDIParser {
 
-  def split(phrase: Phrase): Traversable[Phrase] = {
+  def split(phrase: Phrase): Iterable[Phrase] = {
     phraseSegmenter.segment(phrase)
   }
 
@@ -53,11 +53,11 @@ class JMusicMIDIParser(
   def getMultiVoicePhrase(partNum: Int): Option[Phrase] =
     JMusicParserUtils.convertPart(score.getPart(partNum))
 
-  private val getPhrasesM = FunctionalUtils.memoized[Int, Traversable[Phrase]]((partNum: Int) => {
+  private val getPhrasesM = FunctionalUtils.memoized[Int, Iterable[Phrase]]((partNum: Int) => {
     getMultiVoicePhrase(partNum).map(phrase => split(Phrase.mergePhrases(phrase))).getOrElse(List())
   })
 
-  override def getPhrases(partNum: Int): Traversable[Phrase] = getPhrasesM(partNum)
+  override def getPhrases(partNum: Int): Iterable[Phrase] = getPhrasesM(partNum)
 
   private val getMultiVoicePhrasesM = FunctionalUtils.memoized((partNum: Int) => {
     getMultiVoicePhrase(partNum).map(split).getOrElse(List())
@@ -76,7 +76,7 @@ class JMusicMIDIParser(
   def getInstrumentsCounts: Map[InstrumentType.InstrumentCategory, Int] = {
     val parts = score.getPartArray
     val instruments = parts.map(i => InstrumentType.classify(i.getInstrument))
-    instruments.groupBy(identity).mapValues(_.length)
+    instruments.groupBy(identity).view.mapValues(_.length).toMap
   }
 }
 
@@ -147,14 +147,14 @@ object JMusicParserUtils {
   }
 
   val convertPart = FunctionalUtils.memoized((part: jmData.Part) => {
-    val phrases = part.getPhraseList.map(convertPhrase)
+    val phrases = part.getPhraseList.asScala.map(convertPhrase)
     val keySignature = extractSignature(part)
     Phrase.createPolyphonicPhrase(phrases.toList, getTempo(part), keySignature)
   })
 
   val convertPhrase = FunctionalUtils.memoized((phrase: jmData.Phrase) => {
-    val elements = mutable.MutableList[MusicalElement]()
-    val jmNotes = phrase.getNoteList.toList.sortBy(_.getNoteStartTime.get)
+    val elements = ListBuffer[MusicalElement]()
+    val jmNotes = phrase.getNoteList.asScala.toList.sortBy(_.getNoteStartTime.get)
     val errorMargin = BigInt(1000)
     var prevEnd = BigInt(0)
 

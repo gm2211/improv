@@ -1,0 +1,50 @@
+name := "improv"
+version := "0.1.0"
+scalaVersion := "2.13.18"
+
+// Vendored jars (jfugue, jMusic, javaml, neuroph) in lib/ are picked up automatically as unmanaged jars.
+
+val pekkoVersion = "1.7.1"
+val jacksonVersion = "2.22.4"
+
+libraryDependencies ++= Seq(
+  "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
+  "org.apache.pekko" %% "pekko-testkit" % pekkoVersion % Test,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  // jackson-annotations is released per minor version only: 2.22, not 2.22.4
+  "com.fasterxml.jackson.core" % "jackson-annotations" % "2.22",
+  "org.mapdb" % "mapdb" % "2.0-alpha2",
+  "com.google.guava" % "guava" % "33.7.2-jre",
+  "ch.qos.logback" % "logback-classic" % "1.6.6",
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,
+  "org.scalamock" %% "scalamock-scalatest" % "7.6.2" % Test
+)
+
+// Resource paths are derived from the system class loader (IOUtils.getResourcePath) and the demos
+// write back into the knowledge base, so forked JVMs must see the class and resource directories,
+// not jars or copies. sbt 2 otherwise packages classes into a jar (exportedProductJars,
+// fullClasspathAsJars) and copies the classpath into target/bg-jobs (bgCopyClasspath).
+exportJars := false
+Compile / exportedProductJars := (Compile / exportedProducts).value
+Test / exportedProductJars := (Test / exportedProducts).value
+Compile / fullClasspathAsJars := (Compile / fullClasspath).value
+Runtime / fullClasspathAsJars := (Runtime / fullClasspath).value
+Test / fullClasspathAsJars := (Test / fullClasspath).value
+bgCopyClasspath := false
+fork := true
+Test / fork := true
+Compile / run / connectInput := true
+outputStrategy := Some(StdoutOutput)
+Compile / run / mainClass := Some("demos.DemoCreateTrainingDataANN")
+
+Test / testOptions += Tests.Argument(
+  TestFrameworks.ScalaTest,
+  "-l", "com.gm2211.improv.test.tags.SlowTest",
+  "-l", "com.gm2211.improv.test.tags.Manual"
+)
+Test / javaOptions += "-Djava.awt.headless=true"
+
+javacOptions ++= Seq("--release", "25")
+scalacOptions ++= Seq("-release", "25", "-deprecation", "-feature")

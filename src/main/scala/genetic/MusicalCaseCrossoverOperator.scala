@@ -19,7 +19,7 @@ class MusicalCaseCrossoverOperator extends GeneticOperator[MusicalCase] {
     val minNumSegments = scala.math.min(parents._1.size, parents._2.size)
 
     for (i <- 1 until minNumSegments) {
-      child = child.withMusicalElements(parents._1(i))
+      child = child.withMusicalElements(parents._1(i): Iterable[representation.MusicalElement])
       parents = parents.swap
     }
     val childInstrument = CollectionUtils.chooseRandom(List(c1.instrumentType, c2.instrumentType)).get

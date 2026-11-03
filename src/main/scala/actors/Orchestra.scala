@@ -2,7 +2,7 @@ package actors
 
 import actors.directors.{DirectorBuilder, SimpleDirector}
 import actors.musicians.Musician
-import akka.actor.{ActorRef, ActorSystem, Props}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, Props}
 import messages.{Message, Start, Stop}
 import utils.ActorUtils
 import utils.ImplicitConversions.anyToRunnable
@@ -50,7 +50,7 @@ class Orchestra(val builder: OrchestraBuilder) {
 
   def shutdown(): Unit = {
     system.log.debug("Shutting down..")
-    system.shutdown()
+    system.terminate()
   }
 
   def pause(): Unit = director ! Stop

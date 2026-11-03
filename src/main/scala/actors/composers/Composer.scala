@@ -7,6 +7,6 @@ import representation.Phrase
 trait Composer {
   def compose(
     previousSolution: Option[MusicalCase] = None,
-    phrasesByOthers: Traversable[MusicalCase],
+    phrasesByOthers: Iterable[MusicalCase],
     constraints: List[MusicalCase => Boolean]): Option[Phrase]
 }

@@ -26,7 +26,7 @@ object JFugueMIDIParser extends MIDIParserFactory {
 class JFugueMIDIParser extends MIDIParser {
   override def getPartIndexByInstrument: mutable.MultiMap[InstrumentType, Int] = CollectionUtils.createHashMultimap
 
-  override def getPhrases(partNum: Int): Traversable[Phrase] = List()
+  override def getPhrases(partNum: Int): Iterable[Phrase] = List()
 
   override def getMultiVoicePhrases(partNum: Int): List[Phrase] = List()
 

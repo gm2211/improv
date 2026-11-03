@@ -15,7 +15,6 @@ import representation._
 import utils.ImplicitConversions.{anyToRunnable, toDouble, toEnhancedIterable}
 
 import scala.util.Try
-import scalaz.Scalaz._
 
 class JFugueInstrument(override val instrumentType: InstrumentType = InstrumentType.randomInstrument) extends AsyncInstrument with Observer {
   private val log = LoggerFactory.getLogger(getClass)
@@ -31,8 +30,8 @@ class JFugueInstrument(override val instrumentType: InstrumentType = InstrumentT
 
     val musicSequence = JFugueUtils.toSequence(phrase, instrumentType)
 
-    threadPool.submit(() => {
-      player.play(musicSequence)
+    threadPool.submit(new Runnable {
+      override def run(): Unit = player.play(musicSequence)
     })
   }
 
@@ -74,7 +73,7 @@ object JFugueUtils {
   }
 
   def convertPolyphonicPhrase(phrase: Phrase, instrumentNumber: Int): String = {
-    phrase.polyphony.option {
+    Option.when(phrase.polyphony) {
       phrase.musicalElements.asInstanceOf[List[Phrase]].zipped.map { case musicalElements =>
         musicalElements.map {
           case Some(elem) =>
@@ -105,9 +104,9 @@ object JFugueUtils {
                          CHROMATIC_PERCUSSION.range.contains(instrumentNumber))
   }
 
-  def mergePatterns(patterns: Traversable[Pattern]): String = {
+  def mergePatterns(patterns: Iterable[Pattern]): String = {
     var phrasePatternString = ""
-    for ((curPattern, voice) <- patterns.toStream.zipWithIndex) {
+    for ((curPattern, voice) <- patterns.to(LazyList).zipWithIndex) {
       val nonPercussionVoice = if (voice < 9) voice + 1 else voice + 1
       if (nonPercussionVoice <= MAX_VOICE) {
         phrasePatternString += s" ${curPattern.setVoice(nonPercussionVoice).toString}"

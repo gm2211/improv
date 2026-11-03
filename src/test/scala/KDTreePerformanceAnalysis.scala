@@ -1,16 +1,17 @@
 import java.util.UUID
 
 import net.sf.javaml.core.kdtree.KDTree
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import tests.TestTags.Manual
 import utils.{NumericUtils, ProfilingUtils}
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
-import collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
-class KDTreePerformanceAnalysis extends FlatSpec {
+class KDTreePerformanceAnalysis extends AnyFlatSpec {
 
-  "A KDTree" should "outperform a flat db when performing KNN" in {
+  "A KDTree" should "outperform a flat db when performing KNN" taggedAs Manual in {
     val numOfDimensions: Int = 100
     val numNeighbours: Int = 10
 
@@ -28,7 +29,7 @@ class KDTreePerformanceAnalysis extends FlatSpec {
 
       val target = genPoint
       val (kdTime, _) = ProfilingUtils.timeIt(kdTree.nearest(target, numNeighbours))
-      val elems = kdTree.toList.map(_.getKey.getCoord)
+      val elems = kdTree.asScala.toList.map(_.getKey.getCoord)
       val (flatTime, _) = ProfilingUtils.timeIt(flatKNN(elems, target, numNeighbours))
 
       kdTimes.append((elems.size.toLong, kdTime))
@@ -36,18 +37,6 @@ class KDTreePerformanceAnalysis extends FlatSpec {
 
       println(s"${i}th iteration")
     }
-
-
-    import com.quantifind.charts.Highcharts._
-    spline(kdTimes)
-    hold()
-    spline(flatTimes)
-    legend(List("KNN with KDTree", "KNN with flat db"))
-    title(s"KNN performance for $numNeighbours neighbours")
-    xAxis("# elems")
-    yAxis("milliseconds")
-
-    System.in.read()
   }
 
   def flatKNN(elements: List[Array[Double]], target: Array[Double], k: Int): List[Array[Double]] = {
