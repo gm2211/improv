@@ -5,7 +5,7 @@ import storage.Saveable
 
 class SystemTrainer(
   val extractor: CaseExtractor[MusicalCase] = MusicalCaseExtractors.getDefault(),
-  val index: CaseIndex[MusicalCase] with Saveable) {
+  val index: CaseIndex[MusicalCase] & Saveable) {
 
   def addCasesToIndex(filenames: List[String]): Unit = {
     filenames.foreach(addCasesToIndex)

@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 object SerialisationUtils {
-  val mapper: JsonMapper with ClassTagExtensions =
+  val mapper: JsonMapper & ClassTagExtensions =
     JsonMapper.builder()
       .addModule(DefaultScalaModule)
       .changeDefaultVisibility(_.withVisibility(PropertyAccessor.ALL, Visibility.ANY))

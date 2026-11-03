@@ -8,5 +8,5 @@ class BasicPitchHistogramExtractor extends SingleFeatureExtractor[Phrase] {
   override def extractFeature(phrase: Phrase): Feature[Phrase] =
     Feature.from(Phrase.computePitchHistogram(phrase))
 
-override val featureSize: Int = Note.MAX_MIDI_PITCH + 1 // 0 to MAX_MIDI_PITCH
+  override val featureSize: Int = Note.MAX_MIDI_PITCH + 1 // 0 to MAX_MIDI_PITCH
 }

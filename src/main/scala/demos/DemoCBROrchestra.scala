@@ -13,8 +13,8 @@ import storage.KDTreeIndex
 
 import scala.util.Try
 
-object DemoCBROrchestra extends App{
-  run()
+object DemoCBROrchestra {
+  def main(args: Array[String]): Unit = run()
 
   def getRandInstrument: Instrument = new JFugueInstrument
 

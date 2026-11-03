@@ -5,7 +5,7 @@ import cbr.description.features.extractors.SingleFeatureExtractor
 import representation.{Note, Phrase}
 
 class AverageNoteDurationExtractor extends SingleFeatureExtractor[Phrase] {
-    override def extractFeature(phrase: Phrase): Feature[Phrase] = {
+  override def extractFeature(phrase: Phrase): Feature[Phrase] = {
     var noteCount = 0
     var noteDuration = 0.0
     for (elem <- phrase) {

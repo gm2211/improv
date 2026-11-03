@@ -14,9 +14,9 @@ object CollectionUtils {
   }
 
 
-  def mergeMultiMaps[K, V, A](multiMaps: A*)(implicit fn: A => mutable.MultiMap[K, V]): mutable.MultiMap[K, V] = {
+  def mergeMultiMaps[K, V, A](multiMaps: A*)(implicit fn: A => MultiMap[K, V]): MultiMap[K, V] = {
     val mergedMMap = createHashMultimap[K, V]
-    for (mmap <- multiMaps; (key, values) <- mmap; value <- values) {
+    for (a <- multiMaps; (key, values) <- fn(a); value <- values) {
       mergedMMap.addBinding(key, value)
     }
     mergedMMap
@@ -46,11 +46,8 @@ object CollectionUtils {
     lb to ub
   }
 
-  def createHashMultimap[Keys, Values]: mutable.MultiMap[Keys, Values] = {
-    new mutable.HashMap[Keys, mutable.Set[Values]]() with Serializable with mutable.MultiMap[Keys, Values] {
-      override def makeSet = new mutable.LinkedHashSet()
-    }
-  }
+  def createHashMultimap[Keys, Values]: MultiMap[Keys, Values] =
+    mutable.HashMap.empty[Keys, mutable.Set[Values]]
 
   def mostFrequent[Element](elements: Iterable[Element]): Option[Element] = {
     Try(elements.groupBy(identity).maxBy(_._2.size)._1).toOption

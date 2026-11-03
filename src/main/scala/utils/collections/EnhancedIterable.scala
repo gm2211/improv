@@ -1,17 +1,18 @@
 package utils.collections
 
-import scala.collection.mutable
+import scala.reflect.ClassTag
 import scala.util.Try
 
 class EnhancedIterable[A](val iterable: Iterable[A]) {
-  def groupByMultiMap[K](f: A => K): mutable.MultiMap[K, A] = {
+  def groupByMultiMap[K](f: A => K): MultiMap[K, A] = {
     iterable.foldLeft(CollectionUtils.createHashMultimap[K, A]) { case (mmap, elem) =>
       mmap.addBinding(f(elem), elem)
     }
   }
 
-  def pairsToMultiMap[K : Manifest, V : Manifest](implicit evidence: A =:= (K, V)): mutable.MultiMap[K, V] = {
-    iterable.foldLeft(CollectionUtils.createHashMultimap[K, V]) { case (mmap, (key: K, value: V)) =>
+  def pairsToMultiMap[K, V](implicit evidence: A =:= (K, V)): MultiMap[K, V] = {
+    iterable.foldLeft(CollectionUtils.createHashMultimap[K, V]) { (mmap, elem) =>
+      val (key, value) = evidence(elem)
       mmap.addBinding(key, value)
     }
   }
@@ -32,16 +33,16 @@ class EnhancedIterable[A](val iterable: Iterable[A]) {
     iterable.foldLeft[K](defaultValue) { case (acc, elem) => num.plus(acc, fn(elem)) }
 
   def zipped[K](implicit evidence: A => Iterable[K]): LazyList[List[Option[K]]] = {
-    val elemSize = iterable.maxBy{ case e => e.size }.size
-    val iterators = iterable.map(_.iterator).toList
+    val elemSize = iterable.map(e => evidence(e).size).max
+    val iterators = iterable.map(e => evidence(e).iterator).toList
     (0 until elemSize).to(LazyList).map{ case i =>
       iterators.map(iter => Try{ iter.next() }.toOption)
     }
   }
 
   def zipped[K](defaultValue: K)(implicit evidence: A => Iterable[K]): LazyList[List[K]] = {
-    val elemSize = iterable.maxBy{ case e => e.size }.size
-    val iterators = iterable.map(_.iterator).toList
+    val elemSize = iterable.map(e => evidence(e).size).max
+    val iterators = iterable.map(e => evidence(e).iterator).toList
     (0 until elemSize).to(LazyList).map{ case i =>
       iterators.map(iter => Try{ iter.next() }.getOrElse(defaultValue))
     }
@@ -52,7 +53,7 @@ class EnhancedIterable[A](val iterable: Iterable[A]) {
    * @tparam T Type of the elements to be counted
    * @return
    */
-  def countIfMatchesType[T : Manifest]: Int = {
+  def countIfMatchesType[T : ClassTag]: Int = {
     var count = 0
     iterable.foreach {
       case elem: T =>
@@ -74,14 +75,14 @@ class EnhancedIterable[A](val iterable: Iterable[A]) {
     withFilters(filters)
   }
 
-  def withTypeFilter[T : Manifest]: Iterable[A] = {
+  def withTypeFilter[T : ClassTag]: Iterable[A] = {
     iterable.filter{
       case elem: T => true
       case _ => false
     }
   }
 
-  def filterByType[T : Manifest]: Iterable[T] = {
+  def filterByType[T : ClassTag]: Iterable[T] = {
     iterable.filter{
       case elem: T => true
       case _ => false

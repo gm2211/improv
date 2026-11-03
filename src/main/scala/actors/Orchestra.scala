@@ -13,12 +13,12 @@ import scala.language.implicitConversions
 case class OrchestraBuilder(
   var name: Option[String] = None,
   var actorSystem: Option[ActorSystem] = None,
-  var director: Option[DirectorBuilder[_ <: Count]] = None) {
+  var director: Option[DirectorBuilder[? <: Count]] = None) {
   def withName(name: Option[String]) = copy(name = name)
 
   def withActorSystem(actorSystem: ActorSystem) = copy(actorSystem = Some(actorSystem))
 
-  def withDirector(director: DirectorBuilder[_ <: Count]) = copy(director = Some(director))
+  def withDirector(director: DirectorBuilder[? <: Count]) = copy(director = Some(director))
 
   def build: Orchestra = new Orchestra(this)
 }

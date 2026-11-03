@@ -9,8 +9,9 @@ import storage.KDTreeIndex
 import training.SystemTrainer
 import utils.{SerialisationUtils, IOUtils}
 
-object DemoPopulateDB extends App {
-  run("trainingMIDIs")
+object DemoPopulateDB {
+  def main(args: Array[String]): Unit = run("trainingMIDIs")
+
   def run(resourceDirPath: String): Unit = {
     val dirPath = IOUtils.getResourcePath(resourceDirPath)
     val filenames = IOUtils.filesInDir(dirPath).getOrElse(List())

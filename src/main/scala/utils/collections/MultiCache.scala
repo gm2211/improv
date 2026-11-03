@@ -1,6 +1,7 @@
 package utils.collections
 
 
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 
@@ -13,7 +14,7 @@ import scala.math
 object MultiCache {
   def buildDefault[K, V <: java.lang.Object](timeoutMS: Long, maxSize: Long): MultiCache[K, V] = {
     val builder = CacheBuilder.newBuilder()
-      .expireAfterAccess(timeoutMS, TimeUnit.MILLISECONDS)
+      .expireAfterAccess(Duration.ofMillis(timeoutMS))
       .maximumSize(maxSize)
     new MultiCache[K, V](builder, timeoutMS)
   }
@@ -21,9 +22,9 @@ object MultiCache {
 
 class MultiCache[K, V <: java.lang.Object](
     cacheBuilder: CacheBuilder[java.lang.Object, java.lang.Object],
-    val valueExpiration: Long) extends mutable.MultiMap[K, V] with RemovalListener[UUID, V] {
+    val valueExpiration: Long) extends mutable.Map[K, mutable.Set[V]] with RemovalListener[UUID, V] {
   private val cache: Cache[UUID, V] = cacheBuilder.removalListener(this).build()
-  private val multiMap: mutable.MultiMap[K, UUID] = CollectionUtils.createHashMultimap
+  private val multiMap: MultiMap[K, UUID] = CollectionUtils.createHashMultimap
   private val reverseMap: mutable.Map[UUID, K] = mutable.HashMap()
   private val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
 
@@ -82,12 +83,12 @@ class MultiCache[K, V <: java.lang.Object](
     reverseMap.remove(uuid)
   }
 
-  override def entryExists(key: K, p: (V) => Boolean): Boolean = {
+  def entryExists(key: K, p: (V) => Boolean): Boolean = {
     val pp = (uuid: UUID) => Option(cache.getIfPresent(uuid)).exists(p)
     multiMap.entryExists(key, pp)
   }
 
-  override def addBinding(key: K, value: V): MultiCache.this.type = this.+=((key, mutable.Set(value)))
+  def addBinding(key: K, value: V): MultiCache.this.type = this.+=((key, mutable.Set(value)))
 
   override def contains(key: K): Boolean = multiMap.contains(key)
 

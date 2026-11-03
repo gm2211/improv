@@ -67,7 +67,7 @@ object JMusicConverterUtils {
     jmPhrase.setTempo(phrase.tempoBPM)
 
     phrase.musicalElements
-      .sorted(startTimeOrdering)
+      .sorted(using startTimeOrdering)
       .flatMap(toNote(_, phrase.tempoBPM.toInt))
       .foreach{ note => note.setMyPhrase(jmPhrase); jmPhrase.add(note) }
 

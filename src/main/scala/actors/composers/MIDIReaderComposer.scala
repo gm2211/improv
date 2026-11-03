@@ -31,7 +31,7 @@ class MIDIReaderComposer(builder: MIDIReaderComposerBuilder[AtLeastOnce, AtLeast
   val filename: String = builder.filename.get
   val partNum: Int = builder.partNum.get
   val midiReader: MIDIParser = builder.midiParserFactory.getOrElse(JMusicMIDIParser)(filename)
-  val phraseIterator: Iterator[Phrase] = midiReader.getMultiVoicePhrases(partNum).toIterator
+  val phraseIterator: Iterator[Phrase] = midiReader.getMultiVoicePhrases(partNum).iterator
 
   override def compose(
       previousPhrase: Option[MusicalCase] = None,

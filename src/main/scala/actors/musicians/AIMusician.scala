@@ -17,8 +17,7 @@ import utils.functional.FunctionalUtils
 
 import scala.language.implicitConversions
 
-case class AIMusicianBuilder
-[InstrumentCount <: Count,
+case class AIMusicianBuilder[InstrumentCount <: Count,
  ActorSysCount <: Count](
   var instrument: Option[Instrument] = None,
   var behaviours: Option[List[ActorBehaviour]] = Some(AIMusician.getDefaultBehaviours),

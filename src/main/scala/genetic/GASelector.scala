@@ -56,10 +56,8 @@ class GASelector[Elem, Chromosome](
   }
 
   private def shouldTerminate(iterationCount: Int): Boolean = stoppingCriteria match {
-    case limitRule: IterationLimitReached =>
-      iterationCount >= limitRule.limit
-    case _ =>
-      false
+    case IterationLimitReached(limit) =>
+      iterationCount >= limit
   }
 
 

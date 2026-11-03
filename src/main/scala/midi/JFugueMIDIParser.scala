@@ -1,5 +1,6 @@
 package midi
 
+import utils.collections.MultiMap
 import java.io.File
 import javax.sound.midi.MidiSystem
 
@@ -24,7 +25,7 @@ object JFugueMIDIParser extends MIDIParserFactory {
 }
 
 class JFugueMIDIParser extends MIDIParser {
-  override def getPartIndexByInstrument: mutable.MultiMap[InstrumentType, Int] = CollectionUtils.createHashMultimap
+  override def getPartIndexByInstrument: MultiMap[InstrumentType, Int] = CollectionUtils.createHashMultimap
 
   override def getPhrases(partNum: Int): Iterable[Phrase] = List()
 
