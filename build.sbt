@@ -3,19 +3,22 @@ version := "0.1.0"
 scalaVersion := "2.13.18"
 
 // Vendored jars (jfugue, jMusic, javaml, neuroph) in lib/ are picked up automatically as unmanaged jars.
+// neuroph stays on the vendored 2.9 jar: 2.98 (Maven Central) cannot read knowledgeBase/NN.nnet (serialVersionUID 6 vs 7) and changes DataSet.addRow/learn APIs.
 
 val pekkoVersion = "1.7.1"
-val jacksonVersion = "2.22.4"
+val jacksonVersion = "3.2.4"
 
 libraryDependencies ++= Seq(
   "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
   "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
   "org.apache.pekko" %% "pekko-testkit" % pekkoVersion % Test,
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
-  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
-  // jackson-annotations is released per minor version only: 2.22, not 2.22.4
+  "tools.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+  "tools.jackson.core" % "jackson-databind" % jacksonVersion,
+  // Jackson 3 keeps the annotations in com.fasterxml.jackson.annotation, released per minor version only
   "com.fasterxml.jackson.core" % "jackson-annotations" % "2.22",
-  "org.mapdb" % "mapdb" % "2.0-alpha2",
+  // mapdb pulls in net.jpountz.lz4:lz4:1.3.0, which has known CVEs: excluded below in favour of a maintained fork
+  ("org.mapdb" % "mapdb" % "3.1.0").exclude("net.jpountz.lz4", "lz4"),
+  "at.yawk.lz4" % "lz4-java" % "1.12.1",
   "com.google.guava" % "guava" % "33.7.2-jre",
   "ch.qos.logback" % "logback-classic" % "1.6.6",
   "org.scalatest" %% "scalatest" % "3.2.20" % Test,
