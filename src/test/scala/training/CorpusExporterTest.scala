@@ -16,9 +16,10 @@ import scala.util.Using
 class CorpusExporterTest extends AnyFlatSpec with Matchers {
   private val mapper = JsonMapper.builder().build()
 
-  // cajun-fiddle.mid: 200 BPM and 3 parts (fiddles on channel 0 = ETHNIC, channel 1 = CHROMATIC_PERCUSSION, the drum
-  // tracks on channel 9 = PIANO, see #22), with 94 pairs: 34 where the successor is the next phrase of the same part,
-  // 60 where it is another part's
+  // cajun-fiddle.mid: 200 BPM and 2 parts the case library sees (a fiddle on channel 0 = ETHNIC, program 110, and one on
+  // channel 1 = PIANO, no program change), with 56 pairs: 28 where the successor is the next phrase of the same part,
+  // 28 where it is the other part's. Its two drum tracks (channel 9) are left out (#22): the first used to add 38 pairs
+  // (94 in all), the second took part in none.
   private val KNOWN_FILE = "trainingMIDIs/cajun-fiddle.mid"
 
   private def withTempDir[A](test: Path => A): A = {
@@ -127,9 +128,11 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
 
     // the same number of pairs as improv's own extractor gives the case library
     pairs should have size MusicalCaseExtractors.getDefault().getCases(midi.toString).size
-    pairs should have size 94
-    pairs.count(_.samePart) shouldBe 34
-    pairs.map(_.from.part).toSet shouldBe Set(0, 1, 2)
+    pairs should have size 56
+    pairs.count(_.samePart) shouldBe 28
+    pairs.map(_.from.part).toSet shouldBe Set(0, 1)
+    // no drum phrase: the library leaves the parts on MIDI channel 10 (index 9) out
+    pairs.flatMap(pair => List(pair.from, pair.to)).map(_.channel).toSet shouldBe Set(0, 1)
 
     val first = pairs.head
     first.song shouldBe "cajun-fiddle.mid"
@@ -169,18 +172,18 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     logs.exists(_.contains("FAILED broken/garbage.mid")) shouldBe true
     summary.songs shouldBe 1
     summary.filesWithoutPairs shouldBe 0
-    summary.pairs shouldBe 94
-    summary.samePartPairs shouldBe 34
-    summary.instruments shouldBe Set("ETHNIC", "PIANO", "CHROMATIC_PERCUSSION")
-    summary.programs shouldBe Set(0, 9, 110)
+    summary.pairs shouldBe 56
+    summary.samePartPairs shouldBe 28
+    summary.instruments shouldBe Set("ETHNIC", "PIANO")
+    summary.programs shouldBe Set(0, 110)
 
     val lines = readLines(output)
-    lines should have size 94
+    lines should have size 56
     mapper.readTree(lines.head).get("song").asString() shouldBe "country/cajun-fiddle.mid"
     Files.exists(output.resolveSibling("pairs.jsonl.part")) shouldBe false
 
     val summaryJson = mapper.readTree(readLines(output.resolveSibling("pairs.summary.json")).mkString)
-    summaryJson.get("pairs").asInt() shouldBe 94
+    summaryJson.get("pairs").asInt() shouldBe 56
     summaryJson.get("failures").asInt() shouldBe 1
     summaryJson.get("failedFiles").get(0).get("song").asString() shouldBe "broken/garbage.mid"
   }
@@ -189,7 +192,7 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     val midi = copyResource(KNOWN_FILE, dir.resolve("songs/cajun-fiddle.mid"))
 
     CorpusExporter.run(ExportConfig(List(midi), None, None, dir.resolve("out-dir")), _ => ())
-    readLines(dir.resolve("out-dir/pairs.jsonl")) should have size 94
+    readLines(dir.resolve("out-dir/pairs.jsonl")) should have size 56
     mapper.readTree(readLines(dir.resolve("out-dir/pairs.jsonl")).head).get("song").asString() shouldBe "cajun-fiddle.mid"
 
     val gz = dir.resolve("out-gz/pairs.jsonl.gz")
@@ -197,7 +200,7 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     val lines = Using.resource(new GZIPInputStream(Files.newInputStream(gz))) { in =>
       new String(in.readAllBytes(), StandardCharsets.UTF_8).linesIterator.toList
     }
-    lines should have size 94
+    lines should have size 56
     Files.exists(dir.resolve("out-gz/pairs.summary.json")) shouldBe true
   }
 
