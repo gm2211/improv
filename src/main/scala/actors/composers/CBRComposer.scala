@@ -28,7 +28,7 @@ class CBRComposer(
       solutionPopulation = chooseRandom(caseIndex)
     }
 
-    populationSelector_.selectSolution(previousSolution, solutionPopulation, constraints).map(_.phrase)
+    populationSelector_.selectSolution(previousSolution, solutionPopulation, constraints, phrasesByOthers).map(_.phrase)
   }
 
   def chooseRandom(caseIndex: CaseIndex[MusicalCase]): List[MusicalCase] = {

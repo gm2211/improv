@@ -73,13 +73,13 @@ class SimilarityMeasureTest extends AnyFlatSpec {
 
   "A GASelector" should "score a candidate higher the more it resembles the previous solution, at equal fitness" in {
     val selector = new GASelector[Int, Int](
-      fitnessFunction = _ => 1.0,
+      fitnessFunction = FitnessFunction.ignoringContext(_ => 1.0),
       chromosomeGenerator = identityChromosomes,
       geneticOperator = averagingCrossover,
       similarityMeasure = SimilarityMeasures.fromDistance(intDistance))
-    val previous = Some(10)
+    val context = after(Some(10))
 
-    val scores = List(10, 11, 15, 40, 200).map(selector.score(_, previous))
+    val scores = List(10, 11, 15, 40, 200).map(selector.score(_, context))
 
     scores.zip(scores.tail).foreach { case (closer, further) => assert(closer > further) }
   }
@@ -87,39 +87,41 @@ class SimilarityMeasureTest extends AnyFlatSpec {
   it should "weigh the fitness by the similarity rather than ignore either" in {
     // 40 is 30 away from the previous solution (similarity 1/31, which is about 6e-6 once raised to 3.5)
     def selectorWithFitnessOf40(fitnessOf40: Double) = new GASelector[Int, Int](
-      fitnessFunction = Map(10 -> 1.0, 40 -> fitnessOf40),
+      fitnessFunction = FitnessFunction.ignoringContext(Map(10 -> 1.0, 40 -> fitnessOf40)),
       chromosomeGenerator = identityChromosomes,
       geneticOperator = averagingCrossover,
       similarityMeasure = SimilarityMeasures.fromDistance(intDistance))
 
     // a big enough fitness advantage outweighs the lack of similarity...
-    assert(selectorWithFitnessOf40(1e7).score(40, Some(10)) > selectorWithFitnessOf40(1e7).score(10, Some(10)))
+    assert(selectorWithFitnessOf40(1e7).score(40, after(Some(10))) > selectorWithFitnessOf40(1e7).score(10, after(Some(10))))
     // ...but a modest one does not
-    assert(selectorWithFitnessOf40(1000.0).score(40, Some(10)) < selectorWithFitnessOf40(1000.0).score(10, Some(10)))
+    assert(selectorWithFitnessOf40(1000.0).score(40, after(Some(10))) < selectorWithFitnessOf40(1000.0).score(10, after(Some(10))))
     // the same candidate scores lower as the previous solution moves away from it
-    assert(selectorWithFitnessOf40(1.0).score(40, Some(40)) > selectorWithFitnessOf40(1.0).score(40, Some(10)))
+    assert(selectorWithFitnessOf40(1.0).score(40, after(Some(40))) > selectorWithFitnessOf40(1.0).score(40, after(Some(10))))
   }
 
   it should "ignore similarity when there is no previous solution" in {
     val selector = new GASelector[Int, Int](
-      fitnessFunction = _.toDouble,
+      fitnessFunction = FitnessFunction.ignoringContext(_.toDouble),
       chromosomeGenerator = identityChromosomes,
       geneticOperator = averagingCrossover,
       similarityMeasure = SimilarityMeasures.fromDistance(intDistance))
 
-    assert(selector.score(7, None) == 7.0)
+    assert(selector.score(7, after(None)) == 7.0)
   }
 
   it should "work with the default similarity measure when there is a previous solution" in {
     val selector = new GASelector[Int, Int](
-      fitnessFunction = _.toDouble,
+      fitnessFunction = FitnessFunction.ignoringContext(_.toDouble),
       chromosomeGenerator = identityChromosomes,
       geneticOperator = averagingCrossover)
 
-    val selected = selector.selectSolution(Some(3), List(1, 2, 3, 4, 5, 6), Nil)
+    val selected = selector.selectSolution(Some(3), List(1, 2, 3, 4, 5, 6), Nil, Nil)
 
     assert(selected.exists((1 to 6).contains))
   }
+
+  private def after(previousSolution: Option[Int]): FitnessContext[Int] = FitnessContext(previousSolution = previousSolution)
 
   private def identityChromosomes: ChromosomeGenerator[Int, Int] = new ChromosomeGenerator[Int, Int] {
     override def createChromosome(elem: Int): Int = elem

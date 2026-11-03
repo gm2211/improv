@@ -18,6 +18,10 @@ object GATestSupport {
     override def crossOver(e1: Int, e2: Int): Int = scala.math.max(e1, e2) + 1
   }
 
+  def averagingCrossover: GeneticOperator[Int] = new GeneticOperator[Int] {
+    override def crossOver(e1: Int, e2: Int): Int = (e1 + e2) / 2
+  }
+
   class CountingCrossover extends GeneticOperator[Int] {
     private val counter = new AtomicInteger(0)
     def calls: Int = counter.get

@@ -18,7 +18,7 @@ object GASelector {
 }
 
 class GASelector[Elem, Chromosome](
-      val fitnessFunction: Elem => Double,
+      val fitnessFunction: (Elem, FitnessContext[Elem]) => Double,
       val stoppingCriteria: StoppingCriteria = IterationLimitReached(20),
       val chromosomeGenerator: ChromosomeGenerator[Elem, Chromosome],
       val geneticOperator: GeneticOperator[Chromosome],
@@ -27,32 +27,37 @@ class GASelector[Elem, Chromosome](
   val survivalRate = 2.0/3.0
 
   /**
-   * Fitness of a candidate, weighted by how similar it is to the previous solution (when there is one), so that
-   * phrases that continue the musician's previous phrase are favoured over unrelated ones.
+   * Fitness of a candidate as a response to the context, weighted by how similar it is to the previous solution (when
+   * there is one), so that phrases that continue the musician's previous phrase are favoured over unrelated ones.
    */
-  private[genetic] def score(candidate: Elem, previousSolution: Option[Elem]): Double = {
-    val similarity = previousSolution.map(similarityMeasure(candidate, _)).getOrElse(1.0)
-    scala.math.pow(similarity, GASelector.SimilarityExponent) * fitnessFunction(candidate)
+  private[genetic] def score(candidate: Elem, context: FitnessContext[Elem]): Double = {
+    val similarity = context.previousSolution.map(similarityMeasure(candidate, _)).getOrElse(1.0)
+    scala.math.pow(similarity, GASelector.SimilarityExponent) * fitnessFunction(candidate, context)
   }
 
   /**
    * Evolves the candidates for as long as the stopping criteria allow and returns the best-rated individual of the
    * last generation. The population keeps the size of the candidate list throughout: each generation, a share of it
    * (survivalRate) survives and the rest is replaced by children of the survivors.
+   *
+   * The fitness function rates every individual as a response to what the other musicians played in the last time
+   * slot (phrasesByOthers) and to what the musician played last (previousSolution).
    */
   override def selectSolution(
       previousSolution: Option[Elem],
       candidates: List[Elem],
-      constraints: List[(Elem) => Boolean]): Option[Elem] = {
+      constraints: List[(Elem) => Boolean],
+      phrasesByOthers: Iterable[Elem]): Option[Elem] = {
 
+    val context = FitnessContext(phrasesByOthers.toList, previousSolution)
     val populationSize = candidates.size
     val survivorCount = scala.math.max(1, (populationSize * survivalRate).toInt)
-    var ratedPopulation = candidates.map(rate(_, previousSolution))
+    var ratedPopulation = candidates.map(rate(_, context))
     var iterationCount = 0
 
     while (ratedPopulation.nonEmpty && ! shouldTerminate(iterationCount)) {
       val survivors = stochasticSampling(ratedPopulation, survivorCount)
-      val children = breed(survivors, populationSize - survivors.size).map(rate(_, previousSolution))
+      val children = breed(survivors, populationSize - survivors.size).map(rate(_, context))
       ratedPopulation = survivors ++ children
       iterationCount += 1
     }
@@ -63,8 +68,8 @@ class GASelector[Elem, Chromosome](
   /**
    * Rates an individual with its score. An individual that cannot be scored (NaN) is rated the worst possible.
    */
-  private def rate(candidate: Elem, previousSolution: Option[Elem]): (Elem, Double) = {
-    val rating = score(candidate, previousSolution)
+  private def rate(candidate: Elem, context: FitnessContext[Elem]): (Elem, Double) = {
+    val rating = score(candidate, context)
     (candidate, if (rating.isNaN) Double.NegativeInfinity else rating)
   }
 
