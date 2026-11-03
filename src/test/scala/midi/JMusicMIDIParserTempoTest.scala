@@ -36,8 +36,10 @@ class JMusicMIDIParserTempoTest extends AnyFlatSpec with Matchers with BeforeAnd
     JMusicParserUtils.getTempo(parser.score.getPart(partIndex)) shouldBe 120.0 +- 1e-4
     val phrases = parser.getMultiVoicePhrases(partIndex)
     phrases.map(_.tempoBPM).toSet shouldBe Set(120.0)
-    // 64 beats at 120 BPM are 32 s: six complete 5 second phrases (at 60 BPM there would be twelve)
-    phrases should have size 6
+    // 64 beats of 4/4 (no time signature) are 8 phrases of 2 bars = 8 beats, whatever the tempo; at 120 BPM they last
+    // 4 seconds each (at jMusic's 60 BPM it would be 8 seconds)
+    phrases should have size 8
+    phrases.foreach(_.getDurationNS shouldBe BigInt(4000000000L))
   }
 
   it should "keep the tempo of a file with a single tempo" in {

@@ -31,3 +31,7 @@ with `sbt assembly` (the vendored `lib/` jars are inside) and run it on any mach
 
 `<input>` is a MIDI file or a directory (scanned recursively), `<output>` a `.jsonl` / `.jsonl.gz` file or a directory.
 Run `ExportCorpus` without arguments for the options. The output goes to `corpus/` (gitignored).
+
+Phrases are cut on bar lines, the same way the case library cuts them (`PhraseSegmenter.byBars`): every 2 bars, starting
+at bar 1 (time 0), from the time signature events of the file (4/4 when there are none), so a phrase is 8 beats in 4/4 and
+6 in 3/4. Pickup bars are not detected. A phrase's `durationBeats` follows from its bars; its length in seconds from the tempo.

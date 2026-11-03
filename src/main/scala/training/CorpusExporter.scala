@@ -183,8 +183,11 @@ final case class ExportSummary(
  * improv's own case extraction yields for a MIDI file, as JSON Lines.
  *
  * The cases come from [[DefaultMusicalCaseExtractor]] on a parser built by `JMusicMIDIParser(filename)`, i.e. with the
- * splitter the case library uses at runtime (`PhraseSegmenter.getDefault()`: fixed 5 second windows, the remainder
- * of a part shorter than a window is dropped). If the library ever switches splitter, re-export.
+ * splitter the case library uses at runtime (`PhraseSegmenter.byBars`, #27): a phrase is 2 bars, cut on the bar lines
+ * of the file. Bar 1 starts at time 0, the bars follow the time signature events of the file (4/4 when there are none;
+ * a change starts a new bar), and what is left after the last whole phrase of a part is dropped. A pickup bar is not
+ * detected, so a file that starts with an anacrusis is cut that many beats before its real bar lines. Before #27 the
+ * phrases were 5 second windows. If the library ever switches splitter again, re-export.
  *
  * Like the case library, the extractor pairs a phrase with the next phrase of every part, including its own part.
  * `samePart` tells them apart; a strictly "another instrument continues" corpus keeps `samePart == false`.
@@ -193,7 +196,7 @@ final case class ExportSummary(
  * One line per pair, UTF-8, `\n` terminated:
  * {{{
  * {"v":1,"song":"country/crazy.mid","position":12,"samePart":false,
- *  "from":{"instrument":"PIANO","program":0,"channel":0,"part":1,"tempoBPM":120.0,"durationBeats":10.0,
+ *  "from":{"instrument":"PIANO","program":0,"channel":0,"part":1,"tempoBPM":120.0,"durationBeats":8.0,
  *          "voices":[[[60,0.0,1.0,70],[62,1.0,0.5,70]],[[36,0.0,4.0,60]]]},
  *  "to":{...same shape...}}
  * }}}
@@ -212,9 +215,9 @@ final case class ExportSummary(
  *    one voice. Notes whose duration rounds to zero (slivers where a note was cut at a phrase edge) and voices left
  *    without notes are dropped; a pair with a side that has no notes at all is not exported.
  *
- * Phrase lengths follow the tempo of the file (the tempo it spends the longest time in, see [[midi.MidiTempo]]; the
- * splitter cuts 5 seconds, not a number of beats), so `durationBeats` varies between songs; filter on it if you need
- * phrases of a minimum length.
+ * A phrase is as long in beats as its 2 bars add up to: `durationBeats` is 8 for 4/4 (and 2/2), 6 for 3/4, 4 for 2/4,
+ * 10 for 5/4, and differs inside a song only where its time signature changes. In seconds, phrases follow the tempo of
+ * the file (the tempo it spends the longest time in, see [[midi.MidiTempo]]). An `onset` of 0 is the start of a bar.
  */
 object CorpusExporter {
   val SCHEMA_VERSION = 1

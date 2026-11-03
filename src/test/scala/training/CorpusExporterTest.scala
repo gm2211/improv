@@ -16,10 +16,11 @@ import scala.util.Using
 class CorpusExporterTest extends AnyFlatSpec with Matchers {
   private val mapper = JsonMapper.builder().build()
 
-  // cajun-fiddle.mid: 200 BPM and 2 parts the case library sees (a fiddle on channel 0 = ETHNIC, program 110, and one on
-  // channel 1 = PIANO, no program change), with 56 pairs: 28 where the successor is the next phrase of the same part,
-  // 28 where it is the other part's. Its two drum tracks (channel 9) are left out (#22): the first used to add 38 pairs
-  // (94 in all), the second took part in none.
+  // cajun-fiddle.mid: 4/4 at 200 BPM, so phrases of 2 bars = 8 beats = 2.4 s (#27), and 2 parts the case library sees
+  // (a fiddle on channel 0 = ETHNIC, program 110, and one on channel 1 = PIANO, no program change). Each part has 32
+  // whole phrases, 31 of them with a successor, so 124 pairs = 2 parts x 31 phrases x 2 successor parts: 62 where the
+  // successor is the next phrase of the same part, 62 where it is the other part's. (With the 5 second windows of
+  // before #27 there were 14 phrases a part and 56 pairs.) Its two drum tracks (channel 9) are left out (#22).
   private val KNOWN_FILE = "trainingMIDIs/cajun-fiddle.mid"
 
   private def withTempDir[A](test: Path => A): A = {
@@ -128,8 +129,8 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
 
     // the same number of pairs as improv's own extractor gives the case library
     pairs should have size MusicalCaseExtractors.getDefault().getCases(midi.toString).size
-    pairs should have size 56
-    pairs.count(_.samePart) shouldBe 28
+    pairs should have size 124
+    pairs.count(_.samePart) shouldBe 62
     pairs.map(_.from.part).toSet shouldBe Set(0, 1)
     // no drum phrase: the library leaves the parts on MIDI channel 10 (index 9) out
     pairs.flatMap(pair => List(pair.from, pair.to)).map(_.channel).toSet shouldBe Set(0, 1)
@@ -139,13 +140,16 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     first.position shouldBe 0
     (first.from.instrument, first.from.program, first.from.channel, first.from.part) shouldBe ("ETHNIC", 110, 0, 0)
     first.from.tempoBPM shouldBe 200.0
-    // five seconds at 200 BPM
-    first.from.durationBeats shouldBe BigDecimal("16.666667")
+    // 2 bars of 4/4
+    first.from.durationBeats shouldBe BigDecimal("8.0")
     // two voices; the MIDI file has notes 64 and 69 on beat 1 of the first fiddle track, at velocity 127
     first.from.voices.map(_.head).toSet shouldBe
       Set(corpusNote(64, "1.0", "0.5", 120), corpusNote(69, "1.0", "0.5", 120))
-    // the successor starts with the 64 that was cut at the edge of the window: 1 beat, 2/3 before and 1/3 after it
-    first.to.voices.map(_.head).toSet should contain(corpusNote(64, "0.0", "0.333333", 120))
+    // the phrases are cut on the bar line, so the successor starts with whole notes on its first beat (cutting every
+    // 5 seconds used to leave a piece of a note there) and the two phrases are 8 beats apart
+    first.to.voices.map(_.head).toSet shouldBe
+      Set(corpusNote(76, "0.0", "0.5", 120), corpusNote(69, "0.0", "1.0", 120))
+    first.to.durationBeats shouldBe BigDecimal("8.0")
 
     pairs.foreach { pair =>
       pair.from.voices should not be empty
@@ -157,15 +161,17 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "cut 5 second phrases of the tempo the file spends longest in, not the one jMusic keeps (#23)" in withTempDir { dir =>
-    // (file, tempo that lasts longest, phrase length in beats = 5 s at that tempo). jMusic keeps the last tempo event:
-    // 16 BPM for jdenver-anniessong.mid (phrases of 1.33 beats), 46 for blue.mid (3.83), 47 for
-    // i-always-get-lucky-with-you.mid (3.92), and 5.17 for waterloo.mid, whose only tempo event is 149 BPM
+  it should "cut phrases of 2 bars at the tempo the file spends longest in, not the one jMusic keeps (#23, #27)" in withTempDir { dir =>
+    // (file, tempo that lasts longest, phrase length in beats = 2 bars of its time signature). The tempo still decides
+    // how long a phrase is in time, and so the beats the exporter converts it back to. jMusic keeps the last tempo
+    // event: 16 BPM for jdenver-anniessong.mid (3/4), 46 for blue.mid (4/4), 47 for i-always-get-lucky-with-you.mid
+    // (3/4), and 5.17 for waterloo.mid (4/4), whose only tempo event is 149 BPM. A phrase is the same number of beats
+    // at any of those tempos, so only the tempo of the phrase says that the right one was used.
     val expected = List(
-      ("jdenver-anniessong.mid", 120.0, BigDecimal("10.0")),
-      ("blue.mid", 92.0, BigDecimal("7.666667")),
-      ("i-always-get-lucky-with-you.mid", 80.0, BigDecimal("6.666667")),
-      ("waterloo.mid", 149.0, BigDecimal("12.416807")))
+      ("jdenver-anniessong.mid", 120.0, BigDecimal("6.0")),
+      ("blue.mid", 92.0, BigDecimal("8.0")),
+      ("i-always-get-lucky-with-you.mid", 80.0, BigDecimal("6.0")),
+      ("waterloo.mid", 149.0, BigDecimal("8.0")))
 
     expected.foreach { case (name, bpm, beats) =>
       val midi = copyResource(s"trainingMIDIs/$name", dir.resolve(name))
@@ -194,18 +200,18 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     logs.exists(_.contains("FAILED broken/garbage.mid")) shouldBe true
     summary.songs shouldBe 1
     summary.filesWithoutPairs shouldBe 0
-    summary.pairs shouldBe 56
-    summary.samePartPairs shouldBe 28
+    summary.pairs shouldBe 124
+    summary.samePartPairs shouldBe 62
     summary.instruments shouldBe Set("ETHNIC", "PIANO")
     summary.programs shouldBe Set(0, 110)
 
     val lines = readLines(output)
-    lines should have size 56
+    lines should have size 124
     mapper.readTree(lines.head).get("song").asString() shouldBe "country/cajun-fiddle.mid"
     Files.exists(output.resolveSibling("pairs.jsonl.part")) shouldBe false
 
     val summaryJson = mapper.readTree(readLines(output.resolveSibling("pairs.summary.json")).mkString)
-    summaryJson.get("pairs").asInt() shouldBe 56
+    summaryJson.get("pairs").asInt() shouldBe 124
     summaryJson.get("failures").asInt() shouldBe 1
     summaryJson.get("failedFiles").get(0).get("song").asString() shouldBe "broken/garbage.mid"
   }
@@ -214,7 +220,7 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     val midi = copyResource(KNOWN_FILE, dir.resolve("songs/cajun-fiddle.mid"))
 
     CorpusExporter.run(ExportConfig(List(midi), None, None, dir.resolve("out-dir")), _ => ())
-    readLines(dir.resolve("out-dir/pairs.jsonl")) should have size 56
+    readLines(dir.resolve("out-dir/pairs.jsonl")) should have size 124
     mapper.readTree(readLines(dir.resolve("out-dir/pairs.jsonl")).head).get("song").asString() shouldBe "cajun-fiddle.mid"
 
     val gz = dir.resolve("out-gz/pairs.jsonl.gz")
@@ -222,7 +228,7 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     val lines = Using.resource(new GZIPInputStream(Files.newInputStream(gz))) { in =>
       new String(in.readAllBytes(), StandardCharsets.UTF_8).linesIterator.toList
     }
-    lines should have size 56
+    lines should have size 124
     Files.exists(dir.resolve("out-gz/pairs.summary.json")) shouldBe true
   }
 

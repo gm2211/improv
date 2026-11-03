@@ -22,9 +22,14 @@ import scala.concurrent.duration.{NANOSECONDS, TimeUnit}
 import scala.util.Try
 
 object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMIDIParser] {
+  /**
+   * Parses `filename` and cuts every part into phrases of [[PhraseSegmenter.DEFAULT_BARS_PER_PHRASE]] bars, starting at
+   * bar 1 (#27). The bars come from the time signature events of the file and the tempo of the score; both are read
+   * with `javax.sound.midi` ([[MidiTimeSignature]], [[MidiTempo]]), not through jMusic (#31).
+   */
   override def apply(filename: String) = {
     val score: Score = getScore(filename)
-    new JMusicMIDIParser(score, PhraseSegmenter.getDefault())
+    new JMusicMIDIParser(score, PhraseSegmenter.byBars(MidiTimeSignature.read(filename), score.getTempo))
   }
 
   def apply(phraseSegmenter: PhraseSegmenter)(filename: String) = {
