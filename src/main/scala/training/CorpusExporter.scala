@@ -212,8 +212,9 @@ final case class ExportSummary(
  *    one voice. Notes whose duration rounds to zero (slivers where a note was cut at a phrase edge) and voices left
  *    without notes are dropped; a pair with a side that has no notes at all is not exported.
  *
- * Phrase lengths follow the tempo jMusic reports for the file (the splitter cuts 5 seconds, not a number of beats),
- * so `durationBeats` varies between songs; filter on it if you need phrases of a minimum length.
+ * Phrase lengths follow the tempo of the file (the tempo it spends the longest time in, see [[midi.MidiTempo]]; the
+ * splitter cuts 5 seconds, not a number of beats), so `durationBeats` varies between songs; filter on it if you need
+ * phrases of a minimum length.
  */
 object CorpusExporter {
   val SCHEMA_VERSION = 1

@@ -157,6 +157,28 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "cut 5 second phrases of the tempo the file spends longest in, not the one jMusic keeps (#23)" in withTempDir { dir =>
+    // (file, tempo that lasts longest, phrase length in beats = 5 s at that tempo). jMusic keeps the last tempo event:
+    // 16 BPM for jdenver-anniessong.mid (phrases of 1.33 beats), 46 for blue.mid (3.83), 47 for
+    // i-always-get-lucky-with-you.mid (3.92), and 5.17 for waterloo.mid, whose only tempo event is 149 BPM
+    val expected = List(
+      ("jdenver-anniessong.mid", 120.0, BigDecimal("10.0")),
+      ("blue.mid", 92.0, BigDecimal("7.666667")),
+      ("i-always-get-lucky-with-you.mid", 80.0, BigDecimal("6.666667")),
+      ("waterloo.mid", 149.0, BigDecimal("12.416807")))
+
+    expected.foreach { case (name, bpm, beats) =>
+      val midi = copyResource(s"trainingMIDIs/$name", dir.resolve(name))
+      val sides = CorpusExporter.extractPairs(name, midi.toString).flatMap(pair => List(pair.from, pair.to))
+
+      sides should not be empty
+      sides.foreach { side =>
+        side.tempoBPM shouldBe bpm +- 0.01
+        side.durationBeats.toDouble shouldBe beats.toDouble +- 0.001
+      }
+    }
+  }
+
   it should "skip a file that fails to parse, count it and still write the other files" in withTempDir { dir =>
     val in = dir.resolve("in")
     copyResource(KNOWN_FILE, in.resolve("country/cajun-fiddle.mid"))
