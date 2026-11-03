@@ -51,3 +51,20 @@ Test / javaOptions += "-Djava.awt.headless=true"
 
 javacOptions ++= Seq("--release", "25")
 scalacOptions ++= Seq("-java-output-version", "25", "-deprecation", "-feature")
+
+// Corpus exporter (issue #9): `sbt assembly` writes one jar with the vendored lib/ jars and all dependencies inside, which
+// runs on a machine with only a JDK 25 (the build targets Java 25 bytecode):
+//   java -cp improv-exporter.jar ExportCorpus <input>... <output>
+assembly / assemblyJarName := "improv-exporter.jar"
+assembly / mainClass := Some("ExportCorpus")
+assembly / test := sbt.protocol.testing.TestResult.Passed // building the jar does not wait for the test suite
+assembly / packageOptions += Package.ManifestAttributes("Multi-Release" -> "true")
+assembly / assemblyMergeStrategy := {
+  case "module-info.class" => MergeStrategy.discard
+  case PathList("META-INF", "versions", _, "module-info.class") => MergeStrategy.discard
+  case PathList(".idea", _*) => MergeStrategy.discard // IDE settings that the vendored jars were built with
+  case "logback.xml" => MergeStrategy.preferProject // neuroph-core ships its own
+  case other =>
+    val defaultStrategy = (assembly / assemblyMergeStrategy).value
+    defaultStrategy(other)
+}

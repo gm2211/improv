@@ -27,6 +27,12 @@ class MemoizedFunc[From, To](private val function: From => To) extends Serializa
   def update(from: From, to: To) = results.put(from, to)
 
   /**
+   * Drops every cached result. Long-running batch jobs (e.g. the corpus exporter) call this between inputs so that
+   * the cache does not keep every input alive.
+   */
+  def clear(): Unit = results.clear()
+
+  /**
    * Returns another memoized function with a clean cache
    * @return
    */

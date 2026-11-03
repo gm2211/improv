@@ -21,3 +21,13 @@ Note: sbt 2 copies the classpath (including `src/main/resources`) for every `run
 writes into the knowledge base (e.g. `DemoPopulateDB`) lands in the copy under `target/bg-jobs`. To persist
 the result into `src/main/resources/knowledgeBase`, run the demo with plain `java` on the exported classpath
 (`sbt "export Runtime/fullClasspath"`).
+
+# Corpus export (real-versus-random evaluator)
+`ExportCorpus` writes every (phrase, successor) pair that improv's case extraction yields for a set of MIDI files as
+JSON Lines, with onsets and durations in beats (schema: scaladoc of `training.CorpusExporter`). Build the single jar
+with `sbt assembly` (the vendored `lib/` jars are inside) and run it on any machine with JDK 25:
+
+    java -cp target/out/jvm/scala-3.10.0/improv/improv-exporter.jar ExportCorpus <input>... <output>
+
+`<input>` is a MIDI file or a directory (scanned recursively), `<output>` a `.jsonl` / `.jsonl.gz` file or a directory.
+Run `ExportCorpus` without arguments for the options. The output goes to `corpus/` (gitignored).
