@@ -13,7 +13,8 @@ import scala.util.control.NonFatal
  * jMusic keeps one tempo per score: the last tempo event it reads (a final ritardando, say), and for some files a
  * wrong value (`waterloo.mid`: a SysEx message that follows the tempo event makes jMusic's reader parse the SysEx bytes
  * into the tempo event, 149 BPM becomes 5.17). Every note time in improv is converted from beats to nanoseconds with
- * that one tempo, so a wrong tempo changes the length of every phrase that is cut by seconds (#23).
+ * that one tempo, so a wrong tempo changes the length in seconds of every phrase (#23); since the phrases are cut on
+ * bar lines (#27) it no longer changes where they are cut, in beats.
  */
 object MidiTempo {
   private val log = LoggerFactory.getLogger(getClass)
@@ -75,8 +76,8 @@ object MidiTempo {
   /**
    * Beats per minute of a tempo given in microseconds per quarter note. This is the single precision arithmetic of
    * jMusic's `TempoEvent.read` on purpose: a tempo that jMusic read right stays the very same number (124.999992 for
-   * `king-of-the-road.mid`, not 125), because even a difference of 1e-7 BPM moves notes across the edge of a 5 second
-   * window and changes the phrases of the song (that file would get 24 more pairs).
+   * `king-of-the-road.mid`, not 125): with the 5 second cut that #23 was written against, even a difference of 1e-7 BPM
+   * moved notes across the edge of a window and changed the phrases of the song (that file got 24 more pairs).
    */
   private def toBPM(microsPerQuarter: Long): Double = (1000000f / microsPerQuarter.toFloat * 60f).toDouble
 }

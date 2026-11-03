@@ -19,6 +19,12 @@ object MidiTestFiles {
     new MidiEvent(new MetaMessage(0x51, data, 3), beat.toLong * TICKS_PER_QUARTER)
   }
 
+  /** A time signature meta event (type 0x58) at `beat`: `numerator` over `denominator` (a power of two), 24 clocks per click, 8 32nds per quarter. */
+  def timeSignatureEvent(beat: Int, numerator: Int, denominator: Int): MidiEvent = {
+    val data = Array(numerator.toByte, Integer.numberOfTrailingZeros(denominator).toByte, 24.toByte, 8.toByte)
+    new MidiEvent(new MetaMessage(0x58, data, 4), beat.toLong * TICKS_PER_QUARTER)
+  }
+
   /** A sequence with a single track that holds the given tempo events (beat, bpm) and lasts `lengthBeats` beats. */
   def sequenceWithTempos(lengthBeats: Int, tempos: (Int, Double)*): Sequence = {
     val sequence = new Sequence(Sequence.PPQ, TICKS_PER_QUARTER)
@@ -28,12 +34,22 @@ object MidiTestFiles {
     sequence
   }
 
-  /** Writes a format 1 file with a tempo track (when `tempos` is not empty) and one track per entry of `tracks`. */
-  def write(path: Path, tracks: Seq[NoteTrack], tempos: Seq[(Int, Double)] = Nil): Path = {
+  /**
+   * Writes a format 1 file with a tempo track (when `tempos` or `timeSignatures` is not empty) and one track per entry of
+   * `tracks`. `timeSignatures` are (beat, numerator, denominator).
+   */
+  def write(
+      path: Path,
+      tracks: Seq[NoteTrack],
+      tempos: Seq[(Int, Double)] = Nil,
+      timeSignatures: Seq[(Int, Int, Int)] = Nil): Path = {
     val sequence = new Sequence(Sequence.PPQ, TICKS_PER_QUARTER)
-    if (tempos.nonEmpty) {
+    if (tempos.nonEmpty || timeSignatures.nonEmpty) {
       val tempoTrack = sequence.createTrack()
       tempos.foreach { case (beat, bpm) => tempoTrack.add(tempoEvent(beat, bpm)) }
+      timeSignatures.foreach { case (beat, numerator, denominator) =>
+        tempoTrack.add(timeSignatureEvent(beat, numerator, denominator))
+      }
     }
     tracks.foreach { spec =>
       val track = sequence.createTrack()
