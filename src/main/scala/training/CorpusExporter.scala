@@ -29,7 +29,7 @@ final case class CorpusNote(pitch: Int, onsetBeats: BigDecimal, durationBeats: B
  * One side (the phrase or its successor) of an exported pair.
  * @param instrument Instrument family from `InstrumentType.classify` (PIANO, GUITAR, BASS, ...)
  * @param program General MIDI program of the part, 0 to 127
- * @param channel MIDI channel of the part, 0 to 15 (9 is the drum channel)
+ * @param channel MIDI channel of the part, 0 to 15 (never 9, the drum channel: the case library leaves drum parts out)
  * @param part Index of the part in the MIDI file as jMusic reads it
  * @param tempoBPM Tempo the phrase was converted with (nanoseconds back to beats)
  * @param durationBeats Length of the phrase in beats (longest voice)
@@ -201,7 +201,7 @@ final case class ExportSummary(
  *  - `position`: index of `from` in its part's phrase sequence. `to` is the phrase at `position + 1` of its own part.
  *  - `samePart`: `to` comes from the same part as `from`.
  *  - `instrument`, `program`, `channel`, `part`: where the phrase comes from. `instrument` is improv's family name,
- *    `program` the General MIDI program (0 to 127), `channel` the MIDI channel (9 means drums: filter on it), `part`
+ *    `program` the General MIDI program (0 to 127), `channel` the MIDI channel (never 9: drum parts are left out), `part`
  *    the part index in the file.
  *  - `tempoBPM`: tempo the phrase's nanosecond times were converted back to beats with.
  *  - `durationBeats`: length of the phrase in beats.

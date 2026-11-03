@@ -37,6 +37,11 @@ object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMI
     Read.midi(score, filename)
     score
   }
+
+  /** MIDI channel 10 (index 9) is the General MIDI drum channel: its notes are drum sounds, not pitches. */
+  val DRUM_CHANNEL = 9
+
+  def isDrumPart(part: jmData.Part): Boolean = part.getChannel == DRUM_CHANNEL
 }
 
 class JMusicMIDIParser(
@@ -66,17 +71,28 @@ class JMusicMIDIParser(
 
   override def getMultiVoicePhrases(partNum: Int): List[Phrase] = getMultiVoicePhrasesM(partNum).toList
 
+  /**
+   * Indices of the parts that are classified by instrument: every part except the drum parts (MIDI channel 10).
+   * jMusic gives a drum part the program of its track (0 without a program change), which `InstrumentType.classify`
+   * would take for a piano (or strings, bass, ...), so drum phrases would enter the case library as pitched cases
+   * (#22). improv's musicians are pitched instruments; a drum part can still be read by its index (`getMultiVoicePhrases`).
+   */
+  private def pitchedPartIndices: Seq[Int] = {
+    val partsArray = score.getPartArray
+    (0 until partsArray.size).filterNot(index => JMusicMIDIParser.isDrumPart(partsArray(index)))
+  }
+
   private val partIndexByInstrumentM = FunctionalUtils.memoized[MultiMap[InstrumentType, Int]]({
     val partsArray = score.getPartArray
-    (0 until partsArray.size)
+    pitchedPartIndices
       .groupByMultiMap(index => InstrumentType.classify(partsArray(index).getInstrument))
   })
 
   override def getPartIndexByInstrument: MultiMap[InstrumentType, Int] = partIndexByInstrumentM
 
   def getInstrumentsCounts: Map[InstrumentType.InstrumentCategory, Int] = {
-    val parts = score.getPartArray
-    val instruments = parts.map(i => InstrumentType.classify(i.getInstrument))
+    val partsArray = score.getPartArray
+    val instruments = pitchedPartIndices.map(index => InstrumentType.classify(partsArray(index).getInstrument))
     instruments.groupBy(identity).view.mapValues(_.length).toMap
   }
 }
