@@ -1,6 +1,7 @@
 package cbr.description
 
 import cbr.description.features.Feature
+import com.fasterxml.jackson.annotation.JsonIgnore
 import utils.functional.{FunctionalUtils, MemoizedValue}
 
 import scala.collection.mutable.ArrayBuffer
@@ -15,7 +16,9 @@ object CaseDescription {
 
 trait CaseDescription[Case] {
   val weightedFeatures: List[(Double, Feature[Case])]
-  val size: MemoizedValue[Int] = FunctionalUtils.memoized(weightedFeatures.foldLeft(0)(_ + _._2.size))
+  // Lazy, transient and ignored by Jackson: on Scala 2.13 the memoizing closure is a lambda
+  // that captures this description, which makes both Jackson and MapDB recurse or fail on it.
+  @JsonIgnore @transient lazy val size: MemoizedValue[Int] = FunctionalUtils.memoized(weightedFeatures.foldLeft(0)(_ + _._2.size))
 
   /**
    * Returns an array of doubles that represents a multi-dimensional point which corresponds to the case Description

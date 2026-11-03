@@ -19,7 +19,7 @@ class CBRComposer(
 
   override def compose(
       previousSolution: Option[MusicalCase] = None,
-      phrasesByOthers: Traversable[MusicalCase],
+      phrasesByOthers: Iterable[MusicalCase],
       constraints: List[MusicalCase => Boolean]): Option[Phrase] = {
     var solutionPopulation: List[MusicalCase] = phrasesByOthers
       .flatMap(caseIndex.findSolutionsToSimilarProblems(_, CBRComposer.DEFAULT_NEIGHBOURS_COUNT)).toList

@@ -1,9 +1,9 @@
 package representation
 
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import representation.NoteName._
 
-class PhraseTest extends FlatSpec {
+class PhraseTest extends AnyFlatSpec {
 
   "Notes across the split time" should "be split among the two resulting phrases" in {
     import scala.concurrent.duration.SECONDS

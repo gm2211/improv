@@ -7,7 +7,7 @@ import net.sf.javaml.core.kdtree.KDTree
 import utils.ImplicitConversions.NotNullOption
 import utils.{IOUtils, SerialisationUtils}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 import scala.language.reflectiveCalls
 import scala.math
 import scala.util.Try
@@ -57,8 +57,7 @@ object KDTreeIndex {
 
 
 @JsonCreator
-// CaseIndex is a Traversable. Newer jackson-module-scala versions treat Scala collections as JSON
-// arrays and can't rebuild this class from one; the OBJECT shape keeps it a plain JSON object.
+// Keep this a plain JSON object (see CaseIndex: it must not be a Scala collection).
 @JsonFormat(shape = JsonFormat.Shape.OBJECT)
 class KDTreeIndex[Problem] (
       @JsonProperty("store") private val store: CaseSolutionStore[Problem],
@@ -123,9 +122,9 @@ class KDTreeIndex[Problem] (
     this
   }
 
-  override def foreach[U](f: (CaseDescription[Problem]) => U): Unit = {
-    kdTree.withFilter(!_.isDeleted).foreach( node => f(node.getKey.getCoord))
-  }
+  override def iterator: Iterator[CaseDescription[Problem]] =
+    kdTree.asScala.iterator.filter(!_.isDeleted).map(node => node.getKey.getCoord)
+
 
   override def save(path: Option[String] = None): Try[Boolean] = {
     store.commit()

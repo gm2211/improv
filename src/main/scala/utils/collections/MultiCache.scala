@@ -33,7 +33,7 @@ class MultiCache[K, V <: java.lang.Object](
     math.max(1000, valueExpiration), // Don't run cleanup too often to guarantee availability
     TimeUnit.MILLISECONDS)
 
-  override def +=(kv: (K, mutable.Set[V])): MultiCache.this.type = {
+  override def addOne(kv: (K, mutable.Set[V])): MultiCache.this.type = {
     val (k, vs) = kv
     for (v <- vs) {
       val uuid = UUID.randomUUID()
@@ -44,7 +44,7 @@ class MultiCache[K, V <: java.lang.Object](
     this
   }
 
-  override def -=(key: K): MultiCache.this.type = {
+  override def subtractOne(key: K): MultiCache.this.type = {
     val uuids = multiMap.get(key)
     if (uuids.isDefined) {
       for (uuid <- uuids.get) {

@@ -4,31 +4,31 @@ import com.google.common.base
 import com.google.common.base.Predicate
 import utils.collections.{EnhancedIterable, FasterMutableListWrapper}
 
-import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 import scala.util.Try
 
 object ImplicitConversions {
-  import collection.JavaConversions._
+  import scala.jdk.CollectionConverters._
   implicit def anyToRunnable[F](f: () => F): Runnable = new Runnable {
     override def run(): Unit = f()
   }
 
   implicit def wrapInOption[A <: Any](a: A): Option[A] = Option(a)
 
-  implicit def toFasterMutableList[A](mutableList: mutable.MutableList[A]): FasterMutableListWrapper[A] = new FasterMutableListWrapper[A](mutableList)
+  implicit def toFasterMutableList[A](mutableList: ListBuffer[A]): FasterMutableListWrapper[A] = new FasterMutableListWrapper[A](mutableList)
 
-  implicit def fromEnhancedIterable[A](enhancedTraversable: EnhancedIterable[A]): TraversableOnce[A] =
+  implicit def fromEnhancedIterable[A](enhancedTraversable: EnhancedIterable[A]): IterableOnce[A] =
     enhancedTraversable.iterable
 
   implicit def toEnhancedIterable[A](list: java.util.List[A]): EnhancedIterable[A] =
-    new EnhancedIterable[A](list)
+    new EnhancedIterable[A](list.asScala)
 
-  implicit def toEnhancedIterable[A](traversable: Traversable[A]): EnhancedIterable[A] =
-    new EnhancedIterable[A](traversable.toIterable)
+  implicit def toEnhancedIterable[A](traversable: Iterable[A]): EnhancedIterable[A] =
+    new EnhancedIterable[A](traversable)
 
-  implicit def toEnhancedIterable[A](traversable: TraversableOnce[A]): EnhancedIterable[A] =
-    new EnhancedIterable[A](traversable.toIterable)
+  implicit def toEnhancedIterable[A](traversable: IterableOnce[A]): EnhancedIterable[A] =
+    new EnhancedIterable[A](traversable.iterator.to(Iterable))
 
   implicit def toDouble(bigDecimal: BigDecimal): Double = bigDecimal.toDouble
 

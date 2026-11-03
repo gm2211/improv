@@ -1,5 +1,5 @@
 package messages.consensus
 
-import akka.actor.ActorRef
+import org.apache.pekko.actor.ActorRef
 
 case class FinalDecision(override val sender: ActorRef, decision: DecisionAnswer) extends ConsensusMessage

@@ -3,10 +3,21 @@ Distributed improvising orchestra.
 
 [paper](https://github.com/gm2211/Improv/blob/develop/finalReport.pdf)
 
+# Requirements
+JDK 25 and sbt, e.g. `brew install openjdk@25 sbt` (openjdk@25 is keg-only: put
+`/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home/bin` first on your `PATH` or set `JAVA_HOME` to it).
+
 # Compilation
-Just run ./gradlew build
+Run `sbt compile` (and `sbt Test/compile` for the tests).
+# Testing
+Run `sbt test`. Tests tagged `SlowTest` or `Manual` are excluded by default.
 # Development
-1) Run ./gradlew cleanIdea idea
-2) Open IntelliJ Idea
+Import the project in IntelliJ Idea as an sbt project (File > Open, pick `build.sbt`).
 # Running the project
-Just run ./gradlew run
+Run `sbt run` (starts `demos.DemoCreateTrainingDataANN`), or pick a demo with `sbt "runMain demos.DemoCBROrchestra"`.
+To build the case base first, run `sbt "runMain demos.DemoPopulateDB"`.
+
+Note: sbt 2 copies the classpath (including `src/main/resources`) for every `run`, so anything a demo
+writes into the knowledge base (e.g. `DemoPopulateDB`) lands in the copy under `target/bg-jobs`. To persist
+the result into `src/main/resources/knowledgeBase`, run the demo with plain `java` on the exported classpath
+(`sbt "export Runtime/fullClasspath"`).

@@ -1,6 +1,6 @@
 package messages
 
-import akka.actor.ActorRef
+import org.apache.pekko.actor.ActorRef
 import instruments.InstrumentType.InstrumentType
 import representation.Phrase
 

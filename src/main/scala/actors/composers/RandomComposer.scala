@@ -7,7 +7,7 @@ import representation.{Note, Phrase}
 class RandomComposer extends Composer {
   override def compose(
       previousPhrase: Option[MusicalCase] = None,
-      phrasesByOthers: Traversable[MusicalCase],
+      phrasesByOthers: Iterable[MusicalCase],
       constraints: List[MusicalCase => Boolean]): Option[Phrase] = {
     val range = 1 to 5
     val phrase = Phrase()

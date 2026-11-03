@@ -35,7 +35,7 @@ object MajorityDecision extends PartialFunction[Iterable[DecisionAnswer], Decisi
   override def apply(answers: Iterable[DecisionAnswer]): DecisionAnswer = {
       // Group equal decisions together; count number of equal decisions; choose majority decision
       answers.groupBy(identity)
-        .mapValues(_.size)
+        .view.mapValues(_.size).toMap
         .maxBy(_._2)._1
   }
 }

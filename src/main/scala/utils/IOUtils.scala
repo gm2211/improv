@@ -4,7 +4,7 @@ import java.io._
 
 import com.google.common.io.{ByteStreams, Files}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 object IOUtils {

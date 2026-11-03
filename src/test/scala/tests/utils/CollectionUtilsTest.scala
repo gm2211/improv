@@ -1,10 +1,10 @@
 package tests.utils
 
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import tests.TestTags.SlowTest
 import utils.collections.{EnhancedIterable, MultiCache}
 
-class CollectionUtilsTest extends FlatSpec {
+class CollectionUtilsTest extends AnyFlatSpec {
   "The EnhancedTraversable" should "allow a traversable of pairs w/ the correct type to be converted to a multimap" in {
     // The commented out section won't compile, which is good
     //val traversable = new EnhancedTraversable[(String, String)](List(("a", "1"), ("a", "2")))

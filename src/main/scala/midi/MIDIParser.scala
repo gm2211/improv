@@ -11,7 +11,7 @@ trait MIDIParserFactory {
 
 trait MIDIParser {
 
-  def getPhrases(partNum: Int): Traversable[Phrase]
+  def getPhrases(partNum: Int): Iterable[Phrase]
 
   def getMultiVoicePhrases(partNum: Int): List[Phrase]
 

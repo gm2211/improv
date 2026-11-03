@@ -7,10 +7,10 @@ import _root_.instruments.InstrumentType.PIANO
 import _root_.instruments.JFugueUtils
 import _root_.midi.{JMusicMIDIParser, JMusicParserUtils}
 import _root_.utils.{IOUtils, ProfilingUtils}
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import representation.Phrase
 
-class JMusicMIDIParserTest extends FlatSpec {
+class JMusicMIDIParserTest extends AnyFlatSpec {
   val resourcePath = IOUtils.getResourcePath("musicScores/shortPiano.mid")
   val parser = JMusicMIDIParser(resourcePath)
 

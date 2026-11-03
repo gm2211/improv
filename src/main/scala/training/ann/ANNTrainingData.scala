@@ -8,7 +8,7 @@ import utils.{IOUtils, NumericUtils}
 import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 import scala.util.Try
-import collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
 object ANNTrainingData {
   val DEFAULT_DB_PATH: String = "/tmp/annDB"
@@ -20,7 +20,7 @@ object ANNTrainingData {
     def parseLine(line: String, inputDims: Int) = {
       val input = ListBuffer[Double]()
       val output = ListBuffer[Double]()
-      for ((value, idx) <- line.split(",").toStream.zipWithIndex) {
+      for ((value, idx) <- line.split(",").to(LazyList).zipWithIndex) {
         if (idx < inputDims)
           input += value.toDouble
         else
@@ -33,7 +33,7 @@ object ANNTrainingData {
     maybeReader.map{ reader =>
       val (inputDims, outputDims) = dimensionsFromString(reader.readLine()).get
       val dataSet = new ANNTrainingData(inputDims, outputDims)
-      reader.lines().iterator().toStream.foreach{ line =>
+      reader.lines().iterator().asScala.to(LazyList).foreach{ line =>
         val (input, output) = parseLine(line, inputDims)
         dataSet.addDataPoint(input, output)
       }

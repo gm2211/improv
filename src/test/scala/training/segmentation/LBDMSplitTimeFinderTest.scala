@@ -1,11 +1,11 @@
 package training.segmentation
 
 import midi.JMusicMIDIParser
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import utils.{NumericUtils, IOUtils}
 import utils.collections.CollectionUtils
 
-class LBDMSplitTimeFinderTest extends FlatSpec {
+class LBDMSplitTimeFinderTest extends AnyFlatSpec {
 
   "The split times finder" should "return a list of split times" in {
 
@@ -37,22 +37,10 @@ class LBDMSplitTimeFinderTest extends FlatSpec {
     val avgPeak = NumericUtils.avg(peaks.map(_._1))
     val end = List(pitchProfile.size, ioiProfile.size, restsProfile.size).max
 
-    import com.quantifind.charts.Highcharts._
-    spline(pitchProfile)
-    hold()
-    spline(ioiProfile)
-    spline(restsProfile)
-    spline(combinedProfile)
-//    val peaksMap: Map[Int, BigDecimal] = peaks.groupBy(_._2).mapValues(i => i.head._1 * -1)
-//    val peaksSpline = (0 to combinedProfile.size).map{ i => peaksMap.getOrElse(i, BigDecimal(0))}
-//    spline(peaksSpline)
-    line(List((0, avgPeak), (end, avgPeak)))
-    legend(List("pitchProfile", "ioiProfile", "restsProfile", "combinedProfile", "avgPeak"))
-    title(s"Melodic Boundaries for '$songTitle'")
-    xAxis("time")
-    yAxis("Boundary Strength")
-
-    System.in.read()
+    assert(splitTimes.nonEmpty)
+    assert(peaks.nonEmpty)
+    assert(avgPeak.isNaN == false)
+    assert(end > 0)
   }
 
 }

@@ -1,11 +1,12 @@
 package demos
 
+import scala.collection.mutable.ListBuffer
 import org.slf4j.LoggerFactory
 import utils.ImplicitConversions.anyToRunnable
 
 object DemoActors {
 
-  import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
+  import org.apache.pekko.actor.{Actor, ActorLogging, ActorSystem, Props}
 
   import scala.collection.mutable
 
@@ -14,7 +15,7 @@ object DemoActors {
   }
 
   class B {
-    val listeners = mutable.MutableList[Listener]()
+    val listeners = ListBuffer[Listener]()
 
     def addListener(l: Listener): Unit = listeners += l
 

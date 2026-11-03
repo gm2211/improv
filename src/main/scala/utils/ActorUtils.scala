@@ -2,7 +2,7 @@ package utils
 
 import java.util.concurrent.{Executors, TimeUnit}
 
-import akka.actor.{ActorRef, ActorSystem, Cancellable}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, Cancellable}
 import messages.Message
 
 import scala.concurrent.ExecutionContext
@@ -19,7 +19,7 @@ object ActorUtils {
     val delay = FiniteDuration(delayMS, TimeUnit.MILLISECONDS)
     val duration = FiniteDuration(intervalMS, TimeUnit.MILLISECONDS)
 
-    system.scheduler.schedule(delay, duration, task)
+    system.scheduler.scheduleWithFixedDelay(delay, duration)(task)
   }
 
   def scheduleOnce(delayMS: Long,

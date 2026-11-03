@@ -13,11 +13,11 @@ object NumericUtils {
   def round(value: BigDecimal, digits: Int): BigDecimal =
     value.setScale(digits, RoundingMode.HALF_EVEN)
 
-  def avg[K](traversable: Traversable[K])(implicit ev: Numeric[K]) = {
+  def avg[K](traversable: Iterable[K])(implicit ev: Numeric[K]) = {
     ev.toDouble(traversable.sum) / traversable.size
   }
 
-  def variance[K](traversable: Traversable[K])(implicit num: Numeric[K]): Double = {
+  def variance[K](traversable: Iterable[K])(implicit num: Numeric[K]): Double = {
     val traversableAvg = avg(traversable)
 
     traversable.foldLeft(0.0){ (acc, elem) =>
@@ -26,7 +26,7 @@ object NumericUtils {
     }
   }
 
-  def stdDev[K](traversable: Traversable[K])(implicit num: Numeric[K]): Double = scala.math.sqrt(variance(traversable))
+  def stdDev[K](traversable: Iterable[K])(implicit num: Numeric[K]): Double = scala.math.sqrt(variance(traversable))
 
   def normalise[K](numbers: Iterable[K])(implicit ev: Numeric[K]): Iterable[BigDecimal] = {
     val maxVal = numbers.max

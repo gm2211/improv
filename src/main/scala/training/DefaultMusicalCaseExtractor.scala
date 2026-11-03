@@ -8,7 +8,6 @@ import utils.ImplicitConversions.toEnhancedIterable
 import utils.functional.FunctionalUtils
 
 import scala.collection.mutable.ListBuffer
-import scalaz.Scalaz._
 
 object MusicalCaseExtractors {
   def getDefault(parserFactory: (String) => MIDIParser = JMusicMIDIParser) =
@@ -37,7 +36,7 @@ class DefaultMusicalCaseExtractor(private val parserFactory: (String) => MIDIPar
           otherPartIdx <- indices
         ) {
       val (otherInstr, otherPart) = instrParts(otherPartIdx)
-      val successorPhrase = otherPart.inBounds(phraseIdx + 1).option(otherPart(phraseIdx + 1))
+      val successorPhrase = Option.when(otherPart.inBounds(phraseIdx + 1))(otherPart(phraseIdx + 1))
       successorPhrase.foreach{ successor =>
         if (getFilters(phrase) && getFilters(successor)) {
           cases += ( (MusicalCase(instr, phrase = phrase),

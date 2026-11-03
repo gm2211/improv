@@ -1,12 +1,9 @@
 package utils.collections
 
-import utils.ReflectionUtils
+import scala.collection.mutable.ListBuffer
 
-import scala.collection.mutable
-
-class FasterMutableListWrapper[A](private val mutableList: mutable.MutableList[A]) extends mutable.MutableList[A] {
+class FasterMutableListWrapper[A](private val buffer: ListBuffer[A]) {
   def updateLast(elem: A): Unit = {
-    val last0: Option[mutable.LinkedList[A]] = ReflectionUtils.getField("last0", mutableList)
-    last0.foreach(lastElem => lastElem.update(0, elem))
+    if (buffer.nonEmpty) buffer.update(buffer.size - 1, elem)
   }
 }

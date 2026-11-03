@@ -1,6 +1,6 @@
 package actors.directors
 
-import akka.actor.{ActorLogging, ActorSystem, Cancellable}
+import org.apache.pekko.actor.{ActorLogging, ActorSystem, Cancellable}
 import messages.SyncMessage
 import messages.consensus.DecisionType
 import utils.ActorUtils

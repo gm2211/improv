@@ -2,9 +2,21 @@ package cbr
 
 import cbr.description.{CaseDescription, DescriptionCreator}
 
-trait CaseIndex[Problem] extends Traversable[CaseDescription[Problem]] {
+trait CaseIndex[Problem] {
   val descriptionCreator: DescriptionCreator[Problem]
   type Solution = Problem
+
+  // Deliberately not an Iterable: jackson-module-scala would then serialise the whole index as a
+  // JSON array of case descriptions instead of as an object (and could not read it back).
+  def iterator: Iterator[CaseDescription[Problem]]
+
+  def foreach[U](f: CaseDescription[Problem] => U): Unit = iterator.foreach(f)
+
+  def size: Int = iterator.size
+
+  def toIterable: Iterable[CaseDescription[Problem]] = new Iterable[CaseDescription[Problem]] {
+    override def iterator: Iterator[CaseDescription[Problem]] = CaseIndex.this.iterator
+  }
 
   /**
    * Finds solutions to the `k` problems most similar to the one provided

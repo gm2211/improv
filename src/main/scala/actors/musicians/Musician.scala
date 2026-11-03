@@ -1,6 +1,6 @@
 package actors.musicians
 
-import akka.actor.Actor
+import org.apache.pekko.actor.Actor
 import representation.Phrase
 
 

@@ -15,7 +15,6 @@ import scala.concurrent.duration.{NANOSECONDS, TimeUnit}
 import scala.language.postfixOps
 import scala.math
 import scala.util.Try
-import scalaz.Scalaz._
 
 object Phrase {
   val DEFAULT_START_TIME = 0.0
@@ -26,7 +25,7 @@ object Phrase {
   }
 
   def createPolyphonicPhrase(
-    musicalElements: List[Traversable[MusicalElement]],
+    musicalElements: List[Iterable[MusicalElement]],
     tempoBPM: Double,
     keySignature: KeySignature): Option[Phrase] = {
     val phrases = musicalElements
@@ -132,8 +131,8 @@ object Phrase {
     }
 
     var activeElements = List[MusicalElement]()
-    val phrasesElements: List[mutable.MutableList[MusicalElement]] =
-      (0 until phrase.getMaxChordSize).map(i => mutable.MutableList[MusicalElement]()).toList
+    val phrasesElements: List[ListBuffer[MusicalElement]] =
+      (0 until phrase.getMaxChordSize).map(i => ListBuffer[MusicalElement]()).toList
     val musicalElements: List[MusicalElement] = phrase.musicalElements.sortBy(_.getStartTimeNS)
 
     for (musicalElement <- musicalElements) {
@@ -152,7 +151,7 @@ object Phrase {
 
       activeElements ++= (1 to phrasesElements.size - activeElements.size).map(i => rest)
 
-      activeElements.toStream.foreach{ element =>
+      activeElements.to(LazyList).foreach{ element =>
         val listIdx = Option(phrasesElements.indexWhere(l => elemMatch(l.lastOption, element)))
           .filter(_ >= 0)
           .getOrElse(CollectionUtils.chooseRandom(availablePhrases).get)
@@ -194,11 +193,11 @@ object Phrase {
   }
 
   def mergePhrases(phrase: Phrase): Phrase =
-    phrase.polyphony.option(mergePhrases(phrase.musicalElements.asInstanceOf[List[Phrase]])).getOrElse(phrase)
+    Option.when(phrase.polyphony)(mergePhrases(phrase.musicalElements.asInstanceOf[List[Phrase]])).getOrElse(phrase)
 
-  def mergePhrases(phrases: Traversable[Phrase]): Phrase = {
+  def mergePhrases(phrases: Iterable[Phrase]): Phrase = {
     val notesByStartTime = CollectionUtils.mergeMultiMaps(phrases.toList: _*)(getNotesByStartTimeNS)
-    val phraseElements = mutable.MutableList[MusicalElement]()
+    val phraseElements = ListBuffer[MusicalElement]()
     var activeNotes: List[MusicalElement] = List()
     val endTimes = notesByStartTime.flatMap { case (startTime, notes) =>
       notes.map(note => startTime + note.getDurationNS)
@@ -218,7 +217,7 @@ object Phrase {
     Phrase().withMusicalElements(phraseElements)
   }
 
-  def addToPhraseElements(element: MusicalElement, phraseElements: mutable.MutableList[MusicalElement]): Unit = {
+  def addToPhraseElements(element: MusicalElement, phraseElements: ListBuffer[MusicalElement]): Unit = {
     if (phraseElements.isEmpty) {
       if (element.getStartTimeNS > 0) {
         phraseElements += new Rest(durationNS = element.getStartTimeNS)
@@ -260,8 +259,8 @@ object Phrase {
       rPhrase.foreach(right.+=)
     }
 
-    (left.nonEmpty.option(phrase.withMusicalElements(left)),
-      right.nonEmpty.option(phrase.withMusicalElements(right)))
+    (Option.when(left.nonEmpty)(phrase.withMusicalElements(left)),
+      Option.when(right.nonEmpty)(phrase.withMusicalElements(right)))
   }
 
   def splitNonPolyphonic(phrase: Phrase, splitTimeNS: BigInt): (Option[Phrase], Option[Phrase]) = {
@@ -288,8 +287,8 @@ object Phrase {
       curTimeNS = newTimeNS
     }
 
-    (leftElements.nonEmpty.option(phrase.withMusicalElements(leftElements).withStartTime(0)),
-     rightElements.nonEmpty.option(phrase.withMusicalElements(rightElements).withStartTime(0)))
+    (Option.when(leftElements.nonEmpty)(phrase.withMusicalElements(leftElements).withStartTime(0)),
+     Option.when(rightElements.nonEmpty)(phrase.withMusicalElements(rightElements).withStartTime(0)))
   }
 
   /**
@@ -317,14 +316,15 @@ case class Phrase(
   polyphony: Boolean = false,
   tempoBPM: Double = MusicalElement.DEFAULT_TEMPO_BPM,
   keySignature: KeySignature = Phrase.DEFAULT_KEY_SIGNATURE)
-    extends MusicalElement with Traversable[MusicalElement] {
-  private val maxChordSize: MemoizedFunc[Phrase, Int] =
+    extends MusicalElement with Iterable[MusicalElement] {
+  // Memoizing closures are lambdas on Scala 2.13; keep them out of reflective (MapDB/Jackson) serialisation
+  @transient private lazy val maxChordSize: MemoizedFunc[Phrase, Int] =
     FunctionalUtils.memoized(Phrase.computeMaxChordSize)
 
-  private val duration: MemoizedFunc[(Phrase, TimeUnit), BigInt] =
+  @transient private lazy val duration: MemoizedFunc[(Phrase, TimeUnit), BigInt] =
     FunctionalUtils.memoized((Phrase.computeDuration _).tupled)
 
-  private val startTime: MemoizedFunc[(Phrase, TimeUnit), BigInt] =
+  @transient private lazy val startTime: MemoizedFunc[(Phrase, TimeUnit), BigInt] =
     FunctionalUtils.memoized((Phrase.computeStartTime _).tupled)
 
   require(! polyphony || canHavePolyphony)
@@ -334,9 +334,9 @@ case class Phrase(
     musicalElements.forall{ case p: Phrase => true; case _ => false }
 
   def withPolyphony(polyphony: Boolean = true): Option[Phrase] =
-    (! polyphony || canHavePolyphony).option(myCopy(polyphony = polyphony))
+    Option.when(! polyphony || canHavePolyphony)(myCopy(polyphony = polyphony))
 
-  def withMusicalElements(musicalElements: Traversable[MusicalElement]) =
+  def withMusicalElements(musicalElements: Iterable[MusicalElement]) =
     myCopy(musicalElements = musicalElements.toList)
 
   def withMusicalElements(musicalElements: MusicalElement*) =
@@ -377,13 +377,17 @@ case class Phrase(
 
   def scaled(durationRatio: BigDecimal, timeUnit: TimeUnit): Phrase = {
     val scaledElems = musicalElements.map { elem =>
-      elem.withDuration((BigDecimal(elem.getDuration(timeUnit)) * durationRatio).toBigInt(), timeUnit)
+      elem.withDuration((BigDecimal(elem.getDuration(timeUnit)) * durationRatio).toBigInt, timeUnit)
     }
 
     myCopy(musicalElements = scaledElems)
   }
 
   override def getDuration(timeUnit: TimeUnit): BigInt = duration((this, timeUnit))
+  override def iterator: Iterator[MusicalElement] = musicalElements.iterator
+
+  override protected[this] def className: String = "Phrase"
+
   override def foreach[U](f: (MusicalElement) => U): Unit = musicalElements.foreach(f)
   override def getStartTime(timeUnit: TimeUnit): BigInt = startTime((this, timeUnit))
 
