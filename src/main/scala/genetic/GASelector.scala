@@ -15,6 +15,12 @@ object GASelector {
    * Number of individuals that compete each time a parent is picked: the best-rated of them becomes the parent.
    */
   val TournamentSize = 2
+
+  /**
+   * Number of times a child that fails the constraints is thrown away and bred again, before giving up on crossing the
+   * parents over and using a copy of one of them instead.
+   */
+  val MaxBreedingAttempts = 10
 }
 
 class GASelector[Elem, Chromosome](
@@ -40,6 +46,10 @@ class GASelector[Elem, Chromosome](
    * last generation. The population keeps the size of the candidate list throughout: each generation, a share of it
    * (survivalRate) survives and the rest is replaced by children of the survivors.
    *
+   * Only the candidates that satisfy all the constraints take part (like RandomSelector, this returns None when there
+   * are none), and so do only children that satisfy them: whatever the genetic operator makes of two parents, a
+   * solution that breaks a constraint is never returned. See breed for how failing children are dealt with.
+   *
    * The fitness function rates every individual as a response to what the other musicians played in the last time
    * slot (phrasesByOthers) and to what the musician played last (previousSolution).
    */
@@ -50,20 +60,24 @@ class GASelector[Elem, Chromosome](
       phrasesByOthers: Iterable[Elem]): Option[Elem] = {
 
     val context = FitnessContext(phrasesByOthers.toList, previousSolution)
-    val populationSize = candidates.size
+    val eligibleCandidates = candidates.filter(satisfiesAll(constraints))
+    val populationSize = eligibleCandidates.size
     val survivorCount = scala.math.max(1, (populationSize * survivalRate).toInt)
-    var ratedPopulation = candidates.map(rate(_, context))
+    var ratedPopulation = eligibleCandidates.map(rate(_, context))
     var iterationCount = 0
 
     while (ratedPopulation.nonEmpty && ! shouldTerminate(iterationCount)) {
       val survivors = stochasticSampling(ratedPopulation, survivorCount)
-      val children = breed(survivors, populationSize - survivors.size).map(rate(_, context))
+      val children = breed(survivors, populationSize - survivors.size, constraints).map(rate(_, context))
       ratedPopulation = survivors ++ children
       iterationCount += 1
     }
 
     Try(ratedPopulation.maxBy(_._2)._1).toOption
   }
+
+  private def satisfiesAll(constraints: List[Elem => Boolean])(candidate: Elem): Boolean =
+    constraints.forall(_(candidate))
 
   /**
    * Rates an individual with its score. An individual that cannot be scored (NaN) is rated the worst possible.
@@ -106,16 +120,28 @@ class GASelector[Elem, Chromosome](
   /**
    * Breeds exactly childCount children, each one from a pair of parents picked from the given (rated) individuals by
    * tournament selection.
+   *
+   * A child that fails a constraint is thrown away and bred again from a new pair of parents, at most
+   * GASelector.MaxBreedingAttempts times. If none of the attempts satisfies the constraints, the child is a copy of a
+   * parent picked by tournament, so the number of children is always childCount and they all satisfy the constraints
+   * as long as the parents do.
    */
-  def breed(parents: List[(Elem, Double)], childCount: Int): List[Elem] = {
+  def breed(parents: List[(Elem, Double)], childCount: Int, constraints: List[Elem => Boolean] = Nil): List[Elem] = {
     val candidateParents = parents.toVector
 
     List.fill(childCount) {
-      val chromosome1 = chromosomeGenerator.createChromosome(tournament(candidateParents))
-      val chromosome2 = chromosomeGenerator.createChromosome(tournament(candidateParents))
-
-      chromosomeGenerator.fromChromosome(geneticOperator.crossOver(chromosome1, chromosome2))
+      Iterator.continually(crossOver(candidateParents))
+        .take(GASelector.MaxBreedingAttempts)
+        .find(satisfiesAll(constraints))
+        .getOrElse(tournament(candidateParents))
     }
+  }
+
+  private def crossOver(candidateParents: Vector[(Elem, Double)]): Elem = {
+    val chromosome1 = chromosomeGenerator.createChromosome(tournament(candidateParents))
+    val chromosome2 = chromosomeGenerator.createChromosome(tournament(candidateParents))
+
+    chromosomeGenerator.fromChromosome(geneticOperator.crossOver(chromosome1, chromosome2))
   }
 
   private def tournament(ratedPopulation: Vector[(Elem, Double)]): Elem =
