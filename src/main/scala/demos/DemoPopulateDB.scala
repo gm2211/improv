@@ -2,7 +2,6 @@ package demos
 
 import cbr.MusicalCase
 import cbr.description.PhraseDescriptionCreators
-import com.fasterxml.jackson.databind.ObjectMapper
 import instruments.InstrumentType.PIANO
 import net.sf.javaml.core.kdtree.KDTree
 import representation.Phrase
