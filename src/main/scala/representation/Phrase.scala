@@ -20,6 +20,15 @@ object Phrase {
   val DEFAULT_START_TIME = 0.0
   val DEFAULT_KEY_SIGNATURE: KeySignature = CMaj.keySignature
 
+  /**
+   * How long a gap between two elements has to be to be a rest: 1 microsecond. jMusic's times are doubles that
+   * [[MusicalElement.fromBPM]] truncates to whole nanoseconds, so two notes that touch in a MIDI file come out a few
+   * nanoseconds apart (in the 76 training files such gaps are mostly 1 or 2 ns and at most 99 ns), while the shortest
+   * real rest or note there is 0.8 milliseconds (about one MIDI tick), 800 times more. [[addToPhraseElements]] is the only
+   * place that decides whether a gap is a rest (#39).
+   */
+  val GAP_TOLERANCE_NS: BigInt = 1000
+
   def apply(): Phrase = {
     new Phrase()
   }
@@ -233,9 +242,15 @@ object Phrase {
     new Phrase(tempoBPM = tempoBPM, keySignature = keySignature).withMusicalElements(phraseElements)
   }
 
+  /**
+   * Adds `element` at the end of `phraseElements`. A gap of more than [[GAP_TOLERANCE_NS]] between the end of the last
+   * element (or the start of the phrase) and the start of `element` is filled with a rest; a shorter gap is rounding noise
+   * and is left as it is: no rest, and `element` keeps its start time (#39). Two equal notes in a row become one note, two
+   * rests in a row one rest.
+   */
   def addToPhraseElements(element: MusicalElement, phraseElements: ListBuffer[MusicalElement]): Unit = {
     if (phraseElements.isEmpty) {
-      if (element.getStartTimeNS > 0) {
+      if (element.getStartTimeNS > GAP_TOLERANCE_NS) {
         phraseElements += new Rest(durationNS = element.getStartTimeNS)
       }
       phraseElements += element
@@ -247,7 +262,7 @@ object Phrase {
         case (previousRest: Rest, rest: Rest) =>
           phraseElements.updateLast(previousRest.withDuration(previousRest.durationNS + rest.durationNS))
         case _ =>
-          if (element.getStartTimeNS > phraseElements.last.getEndTimeNS + 1) {
+          if (element.getStartTimeNS > phraseElements.last.getEndTimeNS + GAP_TOLERANCE_NS) {
             phraseElements += new Rest(startTimeNS = phraseElements.last.getEndTimeNS)
               .withEndTime(element.getStartTimeNS - 1)
           }

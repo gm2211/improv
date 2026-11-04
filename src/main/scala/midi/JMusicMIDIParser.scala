@@ -11,7 +11,6 @@ import representation.KeySignature.{KeyQuality, Major, Minor}
 import representation._
 import training.segmentation.PhraseSegmenter
 import utils.ImplicitConversions.{toEnhancedIterable, toFasterMutableList}
-import utils.NumericUtils
 import utils.collections.CollectionUtils
 import utils.functional.FunctionalUtils
 
@@ -194,17 +193,11 @@ object JMusicParserUtils {
   val convertPhrase = FunctionalUtils.memoized((phrase: jmData.Phrase) => {
     val elements = ListBuffer[MusicalElement]()
     val jmNotes = phrase.getNoteList.asScala.toList.sortBy(_.getNoteStartTime.get)
-    val errorMargin = BigInt(1000)
-    var prevEnd = BigInt(0)
 
+    // addToPhraseElements fills a gap of more than Phrase.GAP_TOLERANCE_NS with a rest and ignores a shorter one: the
+    // nanoseconds jMusic's double times leave between two notes that touch are not rests (#39)
     for (jmNote <- jmNotes) {
-      val convertedNote = convertNote(jmNote)
-      val gap = convertedNote.map(_.getStartTimeNS - prevEnd).getOrElse(BigInt(0))
-      if ( gap > errorMargin) {
-        Phrase.addToPhraseElements(Rest(durationNS = gap), elements)
-      }
-      convertedNote.foreach(Phrase.addToPhraseElements(_, elements))
-      convertedNote.foreach(n => prevEnd = NumericUtils.max(n.getEndTimeNS, prevEnd))
+      convertNote(jmNote).foreach(Phrase.addToPhraseElements(_, elements))
     }
 
     new Phrase(elements.toList, tempoBPM = getTempo(phrase), keySignature = getKeySignature(phrase))
