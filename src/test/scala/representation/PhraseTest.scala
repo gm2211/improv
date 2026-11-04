@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import representation.NoteName._
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.SECONDS
 
 class PhraseTest extends AnyFlatSpec with Matchers {
@@ -270,5 +271,82 @@ class PhraseTest extends AnyFlatSpec with Matchers {
 
     Phrase.mergePhrases(melody) should be theSameInstanceAs melody
     Phrase.mergePhrases(melody).keySignature shouldBe aMajor
+  }
+
+  // A gap between two elements of a microsecond or less is jMusic's rounding noise, not a rest (#39)
+  private def addAll(elements: MusicalElement*): List[MusicalElement] = {
+    val phraseElements = ListBuffer[MusicalElement]()
+    elements.foreach(Phrase.addToPhraseElements(_, phraseElements))
+    phraseElements.toList
+  }
+
+  // two notes in a row with the same name, accidental and octave are one note for addToPhraseElements, so give the notes names
+  private def named(name: NoteName, startNS: BigInt, durationNS: BigInt): Note =
+    Note(name = name, startTimeNS = startNS, durationNS = durationNS)
+
+  "A gap of up to a microsecond between two notes" should "not become a rest, and leave both notes where they are" in {
+    for (gap <- List(1L, 2L, 3L, 99L, 500L, 999L, 1000L)) {
+      val first = named(C, 0, second)
+      val next = named(D, second + gap, second)
+
+      withClue(s"a gap of $gap ns: ") { addAll(first, next) shouldBe List(first, next) }
+    }
+  }
+
+  it should "not become a rest after a rest, a chord or a note of the same pitch either" in {
+    val note = named(C, 0, second)
+    val chord = Chord.fromNotes(named(C, 0, second), named(E, 0, second))
+    val rest = Rest(durationNS = second)
+    val later = named(D, second + 5, second)
+
+    addAll(rest, later) shouldBe List(rest, later)
+    addAll(chord, later) shouldBe List(chord, later)
+    addAll(note, later) shouldBe List(note, later)
+    // two equal notes in a row are still one note
+    addAll(note, named(C, second + 5, second)) shouldBe List(note.withDuration(second * 2))
+  }
+
+  "A gap of more than a microsecond" should "still be a rest that starts where the note ends" in {
+    for (gap <- List(1001L, 1000000L, SECONDS.toNanos(1))) {
+      val first = named(C, 0, second)
+      val next = named(D, second + gap, second)
+
+      val elements = addAll(first, next)
+
+      withClue(s"a gap of $gap ns: ") {
+        elements should have size 3
+        elements.head shouldBe first
+        elements(1) shouldBe a[Rest]
+        elements(1).getStartTimeNS shouldBe second
+        elements(1).getDurationNS shouldBe BigInt(gap - 1) // up to the nanosecond before the next note, as it always was
+        elements(2) shouldBe next
+      }
+    }
+  }
+
+  "The first element of a phrase" should "get a rest before it only when it starts more than a microsecond late" in {
+    for (start <- List(0L, 1L, 3L, 999L, 1000L)) {
+      val note = named(C, start, second)
+
+      withClue(s"starting at $start ns: ") { addAll(note) shouldBe List(note) }
+    }
+    for (start <- List(1001L, SECONDS.toNanos(2))) {
+      val note = named(C, start, second)
+
+      addAll(note) shouldBe List(Rest(durationNS = start), note)
+    }
+  }
+
+  "Merging voices whose notes are a few nanoseconds apart" should "leave no rest between the chords" in {
+    val high = new Phrase(List(named(A, 0, second)))
+    val low = new Phrase(List(named(D, second + 5, second)))
+
+    val merged = Phrase.mergePhrases(List(high, low))
+
+    merged.musicalElements.collect { case n: Note => n.name } shouldBe List(A, D)
+    merged.musicalElements.exists(_.isInstanceOf[Rest]) shouldBe false
+    // and a gap that is a pause is still one
+    val later = new Phrase(List(named(D, second + 1000000, second)))
+    Phrase.mergePhrases(List(high, later)).musicalElements.exists(_.isInstanceOf[Rest]) shouldBe true
   }
 }
