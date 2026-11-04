@@ -4,7 +4,7 @@ import cbr.MusicalCase
 import instruments.InstrumentType.{BASS, PIANO}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import representation.{Blues, Jazz, MusicalElement, Note, Phrase}
+import representation.{Blues, Jazz, KeySignature, MusicalElement, Note, Phrase}
 
 import scala.concurrent.duration.SECONDS
 
@@ -129,5 +129,52 @@ class MusicalCaseCrossoverOperatorTest extends AnyFlatSpec with Matchers {
     crossover.crossOver(parent, blip).phrase.tempoBPM shouldBe 90.0
     crossover.crossOver(silence, parent).phrase.tempoBPM shouldBe 60.0
     crossover.crossOver(parent, silence).phrase.tempoBPM shouldBe 90.0
+  }
+
+  // The key signature goes the way the tempo does: the child is labelled with the first parent's, the notes are not transposed (#36)
+  private val gMinor = KeySignature(flats = 2, sharps = 0, KeySignature.Minor)
+  private val aMajor = KeySignature(flats = 0, sharps = 3, KeySignature.Major)
+
+  private def keyedCaseOf(key: KeySignature, pitches: Seq[Int]): MusicalCase = {
+    val phrase = phraseOf(pitches)
+    MusicalCase(PIANO(1), Jazz, new Phrase(phrase.musicalElements, tempoBPM = phrase.tempoBPM, keySignature = key))
+  }
+
+  it should "give the child the key signature of the parents instead of C major" in {
+    val child = crossover.crossOver(keyedCaseOf(gMinor, Seq(60, 61, 62, 63, 64)), keyedCaseOf(gMinor, Seq(70, 71, 72, 73, 74)))
+
+    child.phrase.keySignature shouldBe gMinor
+    pitchesOf(child) shouldBe List(60, 71, 62, 73, 64)
+  }
+
+  it should "give the child the key signature of the first parent when the parents are in different keys, and keep the notes" in {
+    val inGMinor = keyedCaseOf(gMinor, Seq(60, 61, 62, 63, 64))
+    val inAMajor = keyedCaseOf(aMajor, Seq(70, 71, 72, 73, 74))
+
+    crossover.crossOver(inGMinor, inAMajor).phrase.keySignature shouldBe gMinor
+    crossover.crossOver(inAMajor, inGMinor).phrase.keySignature shouldBe aMajor
+    pitchesOf(crossover.crossOver(inAMajor, inGMinor)) shouldBe List(70, 61, 72, 63, 74)
+  }
+
+  it should "give the child the key signature of a polyphonic parent, which is merged first" in {
+    def polyphonicIn(key: KeySignature): MusicalCase = {
+      val voices = List(phraseOf(Seq(60, 61, 62, 63, 64)), phraseOf(Seq(36, 37, 38, 39, 40)))
+        .map(voice => new Phrase(voice.musicalElements, keySignature = key))
+      MusicalCase(PIANO(1), Jazz, new Phrase(voices, polyphony = true, keySignature = key))
+    }
+
+    crossover.crossOver(polyphonicIn(aMajor), polyphonicIn(aMajor)).phrase.keySignature shouldBe aMajor
+    crossover.crossOver(polyphonicIn(gMinor), keyedCaseOf(aMajor, Seq(70, 71, 72, 73, 74))).phrase.keySignature shouldBe gMinor
+  }
+
+  it should "keep the key signature of the first parent when a parent is too short to be cut or empty" in {
+    val blip = MusicalCase(PIANO(1), Jazz, new Phrase(List(Note(durationNS = 3)), keySignature = aMajor))
+    val silence = MusicalCase(PIANO(1), Jazz, new Phrase(keySignature = gMinor))
+    val parent = keyedCaseOf(gMinor, Seq(70, 71, 72, 73, 74))
+
+    crossover.crossOver(blip, parent).phrase.keySignature shouldBe aMajor
+    crossover.crossOver(parent, blip).phrase.keySignature shouldBe gMinor
+    crossover.crossOver(silence, parent).phrase.keySignature shouldBe gMinor
+    crossover.crossOver(parent, silence).phrase.keySignature shouldBe gMinor
   }
 }

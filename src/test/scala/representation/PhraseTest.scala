@@ -150,4 +150,125 @@ class PhraseTest extends AnyFlatSpec with Matchers {
     pieces.map(pitchesAndTimes(_).map(_._1)) shouldBe List(40 to 43, 44 to 47, 48 to 51).map(_.toList)
     pieces.flatMap(pitchesAndTimes(_).map(_._3)).forall(_ >= 1000) shouldBe true
   }
+
+  // The key signature (#36): a copy of a phrase, a piece of it, a voice or a merged phrase keeps it
+  private val gMinor = KeySignature(flats = 2, sharps = 0, KeySignature.Minor)
+  private val aMajor = KeySignature(flats = 0, sharps = 3, KeySignature.Major)
+
+  private def keyedVoice(key: KeySignature, pitches: Int*): Phrase =
+    new Phrase(pitches.zipWithIndex.map { case (pitch, i) => noteAt(pitch, i, 1) }.toList, keySignature = key)
+
+  private def voicesOf(phrase: Phrase): List[Phrase] = phrase.musicalElements.asInstanceOf[List[Phrase]]
+
+  "A copy of a phrase" should "keep the key signature" in {
+    val phrase = keyedVoice(gMinor, 60, 62, 64, 65)
+    val note = noteAt(67, 0, 1)
+
+    phrase.withMusicalElements(List(note)).keySignature shouldBe gMinor
+    phrase.withMusicalElements(note, note).keySignature shouldBe gMinor
+    phrase.withStartTime(SECONDS.toNanos(7)).keySignature shouldBe gMinor
+    phrase.withDuration(SECONDS.toNanos(8)).keySignature shouldBe gMinor
+    phrase.scaled(BigDecimal(2), java.util.concurrent.TimeUnit.NANOSECONDS).keySignature shouldBe gMinor
+    new Phrase(List(phrase), keySignature = gMinor).withPolyphony().get.keySignature shouldBe gMinor
+    new Phrase(List(phrase), polyphony = true, keySignature = gMinor).withPolyphony(false).get.keySignature shouldBe gMinor
+  }
+
+  it should "keep the tempo and the key signature together" in {
+    val phrase = new Phrase(List(noteAt(60, 0, 1)), tempoBPM = 90, keySignature = aMajor)
+
+    val copy = phrase.withStartTime(SECONDS.toNanos(3))
+
+    copy.tempoBPM shouldBe 90.0
+    copy.keySignature shouldBe aMajor
+  }
+
+  it should "move every voice of a polyphonic phrase with the key signature of the voice" in {
+    val phrase = new Phrase(List(keyedVoice(aMajor, 60, 62), keyedVoice(aMajor, 40)), polyphony = true, keySignature = aMajor)
+
+    val moved = phrase.withStartTime(SECONDS.toNanos(5))
+
+    moved.keySignature shouldBe aMajor
+    voicesOf(moved).map(_.keySignature) shouldBe List(aMajor, aMajor)
+  }
+
+  "Cutting a phrase" should "give both pieces the key signature of the phrase" in {
+    val (left, right) = Phrase.split(keyedVoice(gMinor, 60, 62, 64, 65), SECONDS.toNanos(2))
+
+    left.get.keySignature shouldBe gMinor
+    right.get.keySignature shouldBe gMinor
+  }
+
+  it should "give both pieces and each of their voices the key signature of a polyphonic phrase" in {
+    val phrase = new Phrase(
+      List(keyedVoice(aMajor, 60, 62, 64, 65), keyedVoice(aMajor, 36, 38)),
+      polyphony = true,
+      keySignature = aMajor)
+
+    val (left, right) = Phrase.split(phrase, SECONDS.toNanos(2))
+
+    List(left.get, right.get).foreach { piece =>
+      piece.keySignature shouldBe aMajor
+      voicesOf(piece).map(_.keySignature).toSet shouldBe Set(aMajor)
+    }
+  }
+
+  it should "give every piece the key signature when a segmenter cuts a phrase into many" in {
+    val phrase = keyedVoice(gMinor, (60 until 76)*)
+
+    val pieces = training.segmentation.PhraseSegmenter.getDefault(SECONDS.toNanos(4)).segment(phrase)
+
+    pieces should have size 4
+    pieces.map(_.keySignature).toSet shouldBe Set(gMinor)
+  }
+
+  "A polyphonic phrase built from voices" should "give the voices and the phrase the key signature" in {
+    val voices = List(
+      List[MusicalElement](noteAt(60, 0, 1), noteAt(62, 1, 1)),
+      List[MusicalElement](noteAt(40, 0, 2)))
+
+    val phrase = Phrase.createPolyphonicPhrase(voices, 100, gMinor).get
+
+    phrase.polyphony shouldBe true
+    phrase.keySignature shouldBe gMinor
+    voicesOf(phrase).map(_.keySignature) shouldBe List(gMinor, gMinor)
+    phrase.tempoBPM shouldBe 100.0
+  }
+
+  it should "give a single voice the key signature, and nothing when there is no voice" in {
+    val single = Phrase.createPolyphonicPhrase(List(List[MusicalElement](noteAt(60, 0, 1))), 100, aMajor).get
+
+    single.polyphony shouldBe false
+    single.keySignature shouldBe aMajor
+    single.tempoBPM shouldBe 100.0
+    Phrase.createPolyphonicPhrase(List(Nil, Nil), 100, aMajor) shouldBe None
+  }
+
+  "Merging the voices of a phrase" should "keep the key signature of the phrase" in {
+    val phrase = new Phrase(
+      List(keyedVoice(gMinor, 72, 74), keyedVoice(gMinor, 48)),
+      polyphony = true,
+      tempoBPM = 90,
+      keySignature = gMinor)
+
+    val merged = Phrase.mergePhrases(phrase)
+
+    merged.keySignature shouldBe gMinor
+    merged.tempoBPM shouldBe 90.0
+    merged.polyphony shouldBe false
+  }
+
+  it should "give a list of phrases the key signature of the first one, and the default one when there is none" in {
+    val voices = List(keyedVoice(aMajor, 72, 74), keyedVoice(gMinor, 48))
+
+    Phrase.mergePhrases(voices).keySignature shouldBe aMajor
+    Phrase.mergePhrases(voices.reverse).keySignature shouldBe gMinor
+    Phrase.mergePhrases(List[Phrase]()).keySignature shouldBe Phrase.DEFAULT_KEY_SIGNATURE
+  }
+
+  it should "return a phrase with one voice as it is, with its key signature" in {
+    val melody = keyedVoice(aMajor, 60, 62)
+
+    Phrase.mergePhrases(melody) should be theSameInstanceAs melody
+    Phrase.mergePhrases(melody).keySignature shouldBe aMajor
+  }
 }

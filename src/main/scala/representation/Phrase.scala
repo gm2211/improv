@@ -30,7 +30,7 @@ object Phrase {
     keySignature: KeySignature): Option[Phrase] = {
     val phrases = musicalElements
       .withFilter(_.nonEmpty)
-      .map(new Phrase(tempoBPM = tempoBPM).withMusicalElements)
+      .map(new Phrase(tempoBPM = tempoBPM, keySignature = keySignature).withMusicalElements)
 
     phrases match {
       case Nil =>
@@ -194,21 +194,24 @@ object Phrase {
 
   /**
    * A polyphonic phrase as one monophonic phrase (chords where voices overlap); any other phrase is returned as it is.
-   * The result has the tempo of `phrase`.
+   * The result has the tempo and the key signature of `phrase`.
    */
   def mergePhrases(phrase: Phrase): Phrase =
-    if (phrase.polyphony) merge(phrase.musicalElements.asInstanceOf[List[Phrase]], phrase.tempoBPM)
+    if (phrase.polyphony) merge(phrase.musicalElements.asInstanceOf[List[Phrase]], phrase.tempoBPM, phrase.keySignature)
     else phrase
 
   /**
    * The phrases played together as one monophonic phrase. The note times are nanoseconds, so they are merged as they
-   * are; the result is labelled with the tempo of the first phrase (they all have the same one when they are the voices
-   * of one polyphonic phrase), and with the default tempo when there are none.
+   * are; the result is labelled with the tempo and the key signature of the first phrase (they all have the same ones
+   * when they are the voices of one polyphonic phrase), and with the default tempo and key when there are none.
    */
   def mergePhrases(phrases: Iterable[Phrase]): Phrase =
-    merge(phrases, phrases.headOption.map(_.tempoBPM).getOrElse(MusicalElement.DEFAULT_TEMPO_BPM))
+    merge(
+      phrases,
+      phrases.headOption.map(_.tempoBPM).getOrElse(MusicalElement.DEFAULT_TEMPO_BPM),
+      phrases.headOption.map(_.keySignature).getOrElse(DEFAULT_KEY_SIGNATURE))
 
-  private def merge(phrases: Iterable[Phrase], tempoBPM: Double): Phrase = {
+  private def merge(phrases: Iterable[Phrase], tempoBPM: Double, keySignature: KeySignature): Phrase = {
     val notesByStartTime = CollectionUtils.mergeMultiMaps(phrases.toList*)(using getNotesByStartTimeNS)
     val phraseElements = ListBuffer[MusicalElement]()
     var activeNotes: List[MusicalElement] = List()
@@ -227,7 +230,7 @@ object Phrase {
     }
 
     require(activeNotes.isEmpty, "All active notes must be consumed")
-    new Phrase(tempoBPM = tempoBPM).withMusicalElements(phraseElements)
+    new Phrase(tempoBPM = tempoBPM, keySignature = keySignature).withMusicalElements(phraseElements)
   }
 
   def addToPhraseElements(element: MusicalElement, phraseElements: ListBuffer[MusicalElement]): Unit = {
@@ -328,6 +331,8 @@ object Phrase {
  * @param polyphony All the phrases in this phrases are to be played at the same time
  *                  (Pre: all the musical elements in the phrase must be phrases)
  * @param tempoBPM Tempo of the phrase
+ * @param keySignature Key signature of the phrase. Every copy of a phrase (`withMusicalElements`, `withStartTime`,
+ *                     `withPolyphony`, `scaled`, and so the pieces that `Phrase.split` cuts) keeps it.
  */
 case class Phrase(
   musicalElements: List[MusicalElement] = List(),
@@ -412,9 +417,11 @@ case class Phrase(
   private def myCopy(
       musicalElements: List[MusicalElement] = musicalElements,
       polyphony: Boolean = polyphony,
-      tempoBPM: Double = tempoBPM): Phrase = {
+      tempoBPM: Double = tempoBPM,
+      keySignature: KeySignature = keySignature): Phrase = {
     new Phrase(musicalElements = musicalElements,
                polyphony = polyphony,
-               tempoBPM = tempoBPM)
+               tempoBPM = tempoBPM,
+               keySignature = keySignature)
   }
 }

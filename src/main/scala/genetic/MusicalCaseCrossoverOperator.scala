@@ -25,6 +25,10 @@ object MusicalCaseCrossoverOperator {
  * the first parent (the one whose segment comes first). When the parents have different tempos, the beats of the
  * second parent's segments are then read at the first parent's tempo (a segment of 4 beats at 90 BPM is 5.33 beats
  * of a child at 120).
+ *
+ * The child's key signature is the first parent's too, for the same reason: the notes of the second parent's segments
+ * are not transposed, so when the parents are in different keys the child is labelled with the key of its first segment
+ * and the second parent's segments are in whatever key they were in (#36).
  */
 class MusicalCaseCrossoverOperator extends GeneticOperator[MusicalCase] {
   override def crossOver(c1: MusicalCase, c2: MusicalCase): MusicalCase = {
@@ -48,7 +52,7 @@ class MusicalCaseCrossoverOperator extends GeneticOperator[MusicalCase] {
       val segmenter = PhraseSegmenter.getDefault(segmentLength)
       var parents = (segmenter.segment(parent1), segmenter.segment(parent2))
       val minNumSegments = scala.math.min(parents._1.size, parents._2.size)
-      var child = new Phrase(tempoBPM = parent1.tempoBPM)
+      var child = new Phrase(tempoBPM = parent1.tempoBPM, keySignature = parent1.keySignature)
 
       for (i <- 0 until minNumSegments) {
         child = append(child, parents._1(i))

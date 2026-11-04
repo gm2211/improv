@@ -155,8 +155,15 @@ object JMusicParserUtils {
     }
   }
 
+  /**
+   * The key signature of the score the part belongs to: jMusic's MIDI reader keeps one per score, the last key signature
+   * event it read (a file with a key change gets its last key for the whole piece), and C major when there is none.
+   * Both the signature and the quality are read from the score: the reader never sets the quality of a part, which stays
+   * at jMusic's "undefined" value (`Integer.MIN_VALUE`), so reading it there made every key a minor one.
+   */
   def extractSignature(part: jmData.Part): KeySignature = {
-    val midiSignature = part.getMyScore.getKeySignature
+    val score = part.getMyScore
+    val midiSignature = score.getKeySignature
     var numOfFlats = 0
     var numOfSharps = 0
 
@@ -166,10 +173,17 @@ object JMusicParserUtils {
       numOfFlats = midiSignature * -1
     }
 
-    val keyQuality = if (part.getKeyQuality == 0) Major else Minor
+    val keyQuality = if (score.getKeyQuality == 0) Major else Minor
 
     KeySignature(flats = numOfFlats, sharps = numOfSharps, keyQuality)
   }
+
+  /** The key signature of the score of the phrase's part; the default one for a phrase that is not in a part of a score. */
+  def getKeySignature(phrase: jmData.Phrase): KeySignature =
+    Option(phrase.getMyPart)
+      .filter(_.getMyScore != null)
+      .map(extractSignature)
+      .getOrElse(Phrase.DEFAULT_KEY_SIGNATURE)
 
   val convertPart = FunctionalUtils.memoized((part: jmData.Part) => {
     val phrases = part.getPhraseList.asScala.map(convertPhrase)
@@ -193,7 +207,7 @@ object JMusicParserUtils {
       convertedNote.foreach(n => prevEnd = NumericUtils.max(n.getEndTimeNS, prevEnd))
     }
 
-    new Phrase(elements.toList, tempoBPM = getTempo(phrase))
+    new Phrase(elements.toList, tempoBPM = getTempo(phrase), keySignature = getKeySignature(phrase))
   })
 }
 
