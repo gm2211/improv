@@ -3,6 +3,7 @@ package representation
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import representation.NoteName._
+import training.segmentation.PhraseSegmenter
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.SECONDS
@@ -190,6 +191,31 @@ class PhraseTest extends AnyFlatSpec with Matchers {
 
     moved.keySignature shouldBe aMajor
     voicesOf(moved).map(_.keySignature) shouldBe List(aMajor, aMajor)
+  }
+
+  "A phrase put in another key" should "carry the key on every voice, and keep its notes and tempo" in {
+    val phrase = new Phrase(List(keyedVoice(gMinor, 60, 62), keyedVoice(gMinor, 40)), polyphony = true, tempoBPM = 90,
+      keySignature = gMinor)
+    val moved = phrase.withKeySignature(aMajor)
+
+    moved.keySignature shouldBe aMajor
+    moved.tempoBPM shouldBe 90.0
+    voicesOf(moved).map(_.keySignature) shouldBe List(aMajor, aMajor)
+    voicesOf(moved).map(_.musicalElements) shouldBe voicesOf(phrase).map(_.musicalElements)
+    keyedVoice(gMinor, 60).withKeySignature(aMajor).keySignature shouldBe aMajor
+  }
+
+  "A segmenter" should "place every piece where it starts in the phrase it cuts" in {
+    // 12 one-second notes cut every 4 seconds: pieces at 0, 4 and 8 seconds (the stretch after the last cut is dropped)
+    val melody = new Phrase((0 until 12).map(i => noteAt(60 + i, i, 1)).toList)
+    val segmenter = PhraseSegmenter.getDefault(SECONDS.toNanos(4))
+    val pieces = segmenter.segmentWithOffsets(melody)
+
+    pieces.map(_._1) shouldBe List(0L, 4L, 8L).map(s => BigInt(SECONDS.toNanos(s)))
+    pieces.map(_._2) shouldBe segmenter.segment(melody)
+    pieces.map(_._2.musicalElements.head.asInstanceOf[Note].midiPitch) shouldBe List(60, 64, 68)
+    // a phrase too short to be cut is one piece at 0
+    PhraseSegmenter.getDefault(SECONDS.toNanos(20)).segmentWithOffsets(melody) shouldBe List((BigInt(0), melody))
   }
 
   "Cutting a phrase" should "give both pieces the key signature of the phrase" in {
