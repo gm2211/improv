@@ -4,9 +4,10 @@ import java.io.File
 import java.nio.file.{Files, Path}
 import javax.sound.midi.MidiSystem
 
-import _root_.instruments.InstrumentType.PIANO
+import _root_.instruments.InstrumentType.{PIANO, STRINGS}
 import _root_.instruments.JFugueUtils
-import _root_.midi.{JMusicMIDIParser, JMusicParserUtils}
+import _root_.midi.{JMusicMIDIParser, JMusicParserUtils, MidiTestFiles}
+import _root_.midi.MidiTestFiles.NoteTrack
 import _root_.utils.{IOUtils, ProfilingUtils}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -31,10 +32,17 @@ class JMusicMIDIParserTest extends AnyFlatSpec with BeforeAndAfterAll {
   private def musicScores: Set[String] =
     Option(new File(IOUtils.getResourcePath("musicScores")).list).map(_.toSet).getOrElse(Set())
 
-  // Pre-existing failure, see #15
-  "The midi parser" should "return a list of parts and their indexes grouped by instrument" ignore {
-    val partsIndices = parser.getPartIndexByInstrument.get(PIANO(1)).get
-    assert(partsIndices == Set(0, 1))
+  "The midi parser" should "return a list of parts and their indexes grouped by instrument" in {
+    // shortPiano.mid has a single part, a piano (it was expected to have two, #15)
+    assert(parser.getPartIndexByInstrument.toMap == Map(PIANO(1) -> Set(0)))
+
+    // two pianos (program 0) on their own tracks and channels, and a violin (program 40) after them
+    val file = MidiTestFiles.write(outputDir.resolve("two-pianos-and-a-violin.mid"), Seq(
+      NoteTrack(channel = 0, pitches = Seq(60, 62, 64, 65), program = Some(0)),
+      NoteTrack(channel = 1, pitches = Seq(48, 50, 52, 53), program = Some(0)),
+      NoteTrack(channel = 2, pitches = Seq(72, 74, 76, 77), program = Some(40))))
+    val byInstrument = JMusicMIDIParser(file.toString).getPartIndexByInstrument.toMap
+    assert(byInstrument == Map(PIANO(1) -> Set(0, 1), STRINGS(41) -> Set(2)))
   }
 
   "The midi parser" should "correctly assemble a phrase" in {
