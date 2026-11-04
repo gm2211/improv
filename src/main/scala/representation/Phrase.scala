@@ -254,6 +254,11 @@ object Phrase {
   }
 
 
+  /**
+   * Cuts a phrase (each voice of a polyphonic one) in two at `splitTimeNS`. An element that the cut would divide into
+   * pieces of which one is shorter than [[MusicalElement.SPLIT_TOLERANCE_NS]] is not divided: it goes whole to the
+   * side where most of it lies (see [[MusicalElement.split]], #33).
+   */
   def split(phrase: Phrase, splitTimeNS: BigInt): (Option[Phrase], Option[Phrase]) = phrase match {
     case p@Phrase(_, true, _, _) =>
       splitPolyphonic(p, splitTimeNS)

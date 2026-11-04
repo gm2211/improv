@@ -90,4 +90,64 @@ class PhraseTest extends AnyFlatSpec with Matchers {
     merged.getDurationNS shouldBe BigInt(SECONDS.toNanos(2))
     merged.musicalElements should have size 2
   }
+
+  // A note that starts on a cut starts a few nanoseconds before it when jMusic's rounding noise has its say (#33)
+  private val cut: BigInt = SECONDS.toNanos(4)
+  private val second: BigInt = SECONDS.toNanos(1)
+
+  private def noteNS(pitch: Int, startNS: BigInt, durationNS: BigInt): Note =
+    Note(midiPitch = pitch, startTimeNS = startNS, durationNS = durationNS)
+
+  private def pitchesAndTimes(phrase: Phrase): List[(Int, BigInt, BigInt)] =
+    phrase.musicalElements.collect { case n: Note => (n.midiPitch, n.getStartTimeNS, n.getDurationNS) }
+
+  "Cutting a phrase where a note starts a nanosecond early" should "leave the note whole on the right and no sliver on the left" in {
+    val voice = new Phrase(List(
+      noteNS(60, 0, cut - 1), // ends where the next note starts, 1 ns before the cut
+      noteNS(61, cut - 1, second),
+      noteNS(62, cut - 1 + second, second)))
+
+    val (left, right) = Phrase.split(voice, cut)
+
+    pitchesAndTimes(left.get) shouldBe List((60, BigInt(0), cut - 1))
+    // the notes of the right side are the notes of the source, unchanged and in the same places relative to each other
+    pitchesAndTimes(right.get) shouldBe List((61, BigInt(0), second), (62, second, second))
+  }
+
+  it should "give a note that ends a nanosecond after the cut whole to the left, not a sliver to the right" in {
+    val voice = new Phrase(List(noteNS(60, second * 3, second + 1), noteNS(61, cut + 1, second)))
+
+    val (left, right) = Phrase.split(voice, cut)
+
+    pitchesAndTimes(left.get) shouldBe List((60, BigInt(0), second + 1))
+    pitchesAndTimes(right.get) shouldBe List((61, BigInt(0), second))
+  }
+
+  it should "cut every voice of a polyphonic phrase the same way" in {
+    val early = new Phrase(List(noteNS(60, 0, cut - 1), noteNS(61, cut - 2, second * 2)))
+    val clean = new Phrase(List(noteNS(36, 0, second * 3), noteNS(37, second * 3, second * 3)))
+    val phrase = new Phrase(List(early, clean), polyphony = true)
+
+    val (left, right) = Phrase.split(phrase, cut)
+
+    val leftVoices = left.get.musicalElements.asInstanceOf[List[Phrase]]
+    val rightVoices = right.get.musicalElements.asInstanceOf[List[Phrase]]
+    pitchesAndTimes(leftVoices(0)) shouldBe List((60, BigInt(0), cut - 1))
+    pitchesAndTimes(rightVoices(0)) shouldBe List((61, BigInt(0), second * 2))
+    // a note that the cut really goes through is cut as before
+    pitchesAndTimes(leftVoices(1)) shouldBe List((36, BigInt(0), second * 3), (37, second * 3, second))
+    pitchesAndTimes(rightVoices(1)) shouldBe List((37, BigInt(0), second * 2))
+  }
+
+  it should "leave no note shorter than a microsecond in any piece of a phrase that is cut every 4 seconds" in {
+    // 1 second notes, each starting 1 ns before the second it belongs to
+    val notes = (0 until 16).map { i =>
+      if (i == 0) noteNS(40, 0, second - 1) else noteNS(40 + i, second * i - 1, second)
+    }
+
+    val pieces = training.segmentation.PhraseSegmenter.getDefault(cut).segment(new Phrase(notes.toList))
+
+    pieces.map(pitchesAndTimes(_).map(_._1)) shouldBe List(40 to 43, 44 to 47, 48 to 51).map(_.toList)
+    pieces.flatMap(pitchesAndTimes(_).map(_._3)).forall(_ >= 1000) shouldBe true
+  }
 }

@@ -212,8 +212,9 @@ final case class ExportSummary(
  *    notes `[pitch, onset, duration, velocity]` ordered by onset. `pitch` is a MIDI pitch, `onset` and `duration` are
  *    in beats relative to the phrase start (6 decimals), `velocity` is improv's loudness class (0, 10, 25, 50, 60,
  *    70, 85, 100, 120), not the raw MIDI velocity. Rests are not exported. Chord notes appear as simultaneous notes of
- *    one voice. Notes whose duration rounds to zero (slivers where a note was cut at a phrase edge) and voices left
- *    without notes are dropped; a pair with a side that has no notes at all is not exported.
+ *    one voice. Notes whose duration rounds to zero and voices left without notes are dropped (cutting a phrase no
+ *    longer leaves slivers, #33, so this only catches zero length notes of the file itself); a pair with a side that
+ *    has no notes at all is not exported.
  *
  * A phrase is as long in beats as its 2 bars add up to: `durationBeats` is 8 for 4/4 (and 2/2), 6 for 3/4, 4 for 2/4,
  * 10 for 5/4, and differs inside a song only where its time signature changes. In seconds, phrases follow the tempo of
@@ -287,7 +288,8 @@ object CorpusExporter {
 
   /**
    * The notes of an element in order of onset, with times converted from nanoseconds to beats at `tempoBPM`. Notes
-   * whose duration rounds to zero are dropped: they are slivers left where a note was cut at the edge of a phrase.
+   * whose duration rounds to zero are dropped. Slivers left where a note was cut at the edge of a phrase used to be
+   * what this caught; [[representation.MusicalElement.split]] no longer leaves them (#33), so it is a safety net now.
    */
   private def notesOf(element: MusicalElement, tempoBPM: BigDecimal): List[CorpusNote] = {
     def collect(elem: MusicalElement, tempo: BigDecimal): List[CorpusNote] = elem match {
