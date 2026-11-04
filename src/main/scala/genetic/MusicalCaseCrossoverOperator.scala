@@ -19,6 +19,12 @@ object MusicalCaseCrossoverOperator {
  * Builds a child by alternating consecutive, equally long segments of its two parents, starting with the first
  * segment of the first parent. The segments are laid out one after the other, so the child is about as long as the
  * shorter parent.
+ *
+ * Note times are nanoseconds, and that is what is heard, so the segments keep their times whatever the tempo of the
+ * parent they come from. The child's `tempoBPM`, which only says how to read those times back as beats, is the tempo of
+ * the first parent (the one whose segment comes first). When the parents have different tempos, the beats of the
+ * second parent's segments are then read at the first parent's tempo (a segment of 4 beats at 90 BPM is 5.33 beats
+ * of a child at 120).
  */
 class MusicalCaseCrossoverOperator extends GeneticOperator[MusicalCase] {
   override def crossOver(c1: MusicalCase, c2: MusicalCase): MusicalCase = {
@@ -42,7 +48,7 @@ class MusicalCaseCrossoverOperator extends GeneticOperator[MusicalCase] {
       val segmenter = PhraseSegmenter.getDefault(segmentLength)
       var parents = (segmenter.segment(parent1), segmenter.segment(parent2))
       val minNumSegments = scala.math.min(parents._1.size, parents._2.size)
-      var child = Phrase()
+      var child = new Phrase(tempoBPM = parent1.tempoBPM)
 
       for (i <- 0 until minNumSegments) {
         child = append(child, parents._1(i))

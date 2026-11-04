@@ -77,4 +77,18 @@ class JMusicMIDIParserTempoTest extends AnyFlatSpec with Matchers with BeforeAnd
       }
     }
   }
+
+  it should "label the merged phrases of a polyphonic part with the tempo of the file, not the default (#34)" in {
+    // cajun-fiddle.mid: a single tempo of 200 BPM and two voices in its part
+    val parser = parserOf("cajun-fiddle.mid")
+    val partIndex = parser.getPartIndexByInstrument.values.flatten.min
+
+    parser.getMultiVoicePhrases(partIndex).exists(_.polyphony) shouldBe true
+    val merged = parser.getPhrases(partIndex)
+    merged should not be empty
+    merged.foreach { phrase =>
+      phrase.polyphony shouldBe false
+      phrase.tempoBPM shouldBe 200.0 +- 0.01
+    }
+  }
 }
