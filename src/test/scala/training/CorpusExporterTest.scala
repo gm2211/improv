@@ -18,9 +18,11 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
 
   // cajun-fiddle.mid: 4/4 at 200 BPM, so phrases of 2 bars = 8 beats = 2.4 s (#27), and 2 parts the case library sees
   // (a fiddle on channel 0 = ETHNIC, program 110, and one on channel 1 = PIANO, no program change). Each part has 32
-  // whole phrases, 31 of them with a successor, so 124 pairs = 2 parts x 31 phrases x 2 successor parts: 62 where the
-  // successor is the next phrase of the same part, 62 where it is the other part's. (With the 5 second windows of
-  // before #27 there were 14 phrases a part and 56 pairs.) Its two drum tracks (channel 9) are left out (#22).
+  // whole phrases, 31 of them with a successor. The first phrase of each part starts in silence (no voice plays on its
+  // first beat in part 0, nor on its first 4 beats in part 1), which the case library refuses (#44), so 30 phrases a part
+  // have a successor: 120 pairs = 2 parts x 30 phrases x 2 successor parts, 60 where the successor is the next phrase
+  // of the same part, 60 where it is the other part's. (124 before #44, which only looked at the rests of phrases
+  // without polyphony; 56 with the 5 second windows of before #27.) Its two drum tracks (channel 9) are left out (#22).
   private val KNOWN_FILE = "trainingMIDIs/cajun-fiddle.mid"
 
   private def withTempDir[A](test: Path => A): A = {
@@ -129,26 +131,27 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
 
     // the same number of pairs as improv's own extractor gives the case library
     pairs should have size MusicalCaseExtractors.getDefault().getCases(midi.toString).size
-    pairs should have size 124
-    pairs.count(_.samePart) shouldBe 62
+    pairs should have size 120
+    pairs.count(_.samePart) shouldBe 60
     pairs.map(_.from.part).toSet shouldBe Set(0, 1)
     // no drum phrase: the library leaves the parts on MIDI channel 10 (index 9) out
     pairs.flatMap(pair => List(pair.from, pair.to)).map(_.channel).toSet shouldBe Set(0, 1)
 
+    // the first phrase of each part starts in silence and is not a case (#44): the pairs start at position 1
+    pairs.map(_.position).min shouldBe 1
     val first = pairs.head
     first.song shouldBe "cajun-fiddle.mid"
-    first.position shouldBe 0
+    first.position shouldBe 1
     (first.from.instrument, first.from.program, first.from.channel, first.from.part) shouldBe ("ETHNIC", 110, 0, 0)
     first.from.tempoBPM shouldBe 200.0
     // 2 bars of 4/4
     first.from.durationBeats shouldBe BigDecimal("8.0")
-    // two voices; the MIDI file has notes 64 and 69 on beat 1 of the first fiddle track, at velocity 127
+    // two voices; the phrases are cut on the bar line, so a phrase starts with whole notes on its first beat (cutting
+    // every 5 seconds used to leave a piece of a note there) and the two phrases are 8 beats apart
     first.from.voices.map(_.head).toSet shouldBe
-      Set(corpusNote(64, "1.0", "0.5", 120), corpusNote(69, "1.0", "0.5", 120))
-    // the phrases are cut on the bar line, so the successor starts with whole notes on its first beat (cutting every
-    // 5 seconds used to leave a piece of a note there) and the two phrases are 8 beats apart
-    first.to.voices.map(_.head).toSet shouldBe
       Set(corpusNote(76, "0.0", "0.5", 120), corpusNote(69, "0.0", "1.0", 120))
+    first.to.voices.map(_.head).toSet shouldBe
+      Set(corpusNote(64, "0.0", "1.0", 120), corpusNote(69, "0.0", "1.0", 120))
     first.to.durationBeats shouldBe BigDecimal("8.0")
 
     pairs.foreach { pair =>
@@ -200,18 +203,18 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     logs.exists(_.contains("FAILED broken/garbage.mid")) shouldBe true
     summary.songs shouldBe 1
     summary.filesWithoutPairs shouldBe 0
-    summary.pairs shouldBe 124
-    summary.samePartPairs shouldBe 62
+    summary.pairs shouldBe 120
+    summary.samePartPairs shouldBe 60
     summary.instruments shouldBe Set("ETHNIC", "PIANO")
     summary.programs shouldBe Set(0, 110)
 
     val lines = readLines(output)
-    lines should have size 124
+    lines should have size 120
     mapper.readTree(lines.head).get("song").asString() shouldBe "country/cajun-fiddle.mid"
     Files.exists(output.resolveSibling("pairs.jsonl.part")) shouldBe false
 
     val summaryJson = mapper.readTree(readLines(output.resolveSibling("pairs.summary.json")).mkString)
-    summaryJson.get("pairs").asInt() shouldBe 124
+    summaryJson.get("pairs").asInt() shouldBe 120
     summaryJson.get("failures").asInt() shouldBe 1
     summaryJson.get("failedFiles").get(0).get("song").asString() shouldBe "broken/garbage.mid"
   }
@@ -220,7 +223,7 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     val midi = copyResource(KNOWN_FILE, dir.resolve("songs/cajun-fiddle.mid"))
 
     CorpusExporter.run(ExportConfig(List(midi), None, None, dir.resolve("out-dir")), _ => ())
-    readLines(dir.resolve("out-dir/pairs.jsonl")) should have size 124
+    readLines(dir.resolve("out-dir/pairs.jsonl")) should have size 120
     mapper.readTree(readLines(dir.resolve("out-dir/pairs.jsonl")).head).get("song").asString() shouldBe "cajun-fiddle.mid"
 
     val gz = dir.resolve("out-gz/pairs.jsonl.gz")
@@ -228,7 +231,7 @@ class CorpusExporterTest extends AnyFlatSpec with Matchers {
     val lines = Using.resource(new GZIPInputStream(Files.newInputStream(gz))) { in =>
       new String(in.readAllBytes(), StandardCharsets.UTF_8).linesIterator.toList
     }
-    lines should have size 124
+    lines should have size 120
     Files.exists(dir.resolve("out-gz/pairs.summary.json")) shouldBe true
   }
 
