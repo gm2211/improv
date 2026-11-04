@@ -192,10 +192,23 @@ object Phrase {
     }
   }
 
+  /**
+   * A polyphonic phrase as one monophonic phrase (chords where voices overlap); any other phrase is returned as it is.
+   * The result has the tempo of `phrase`.
+   */
   def mergePhrases(phrase: Phrase): Phrase =
-    Option.when(phrase.polyphony)(mergePhrases(phrase.musicalElements.asInstanceOf[List[Phrase]])).getOrElse(phrase)
+    if (phrase.polyphony) merge(phrase.musicalElements.asInstanceOf[List[Phrase]], phrase.tempoBPM)
+    else phrase
 
-  def mergePhrases(phrases: Iterable[Phrase]): Phrase = {
+  /**
+   * The phrases played together as one monophonic phrase. The note times are nanoseconds, so they are merged as they
+   * are; the result is labelled with the tempo of the first phrase (they all have the same one when they are the voices
+   * of one polyphonic phrase), and with the default tempo when there are none.
+   */
+  def mergePhrases(phrases: Iterable[Phrase]): Phrase =
+    merge(phrases, phrases.headOption.map(_.tempoBPM).getOrElse(MusicalElement.DEFAULT_TEMPO_BPM))
+
+  private def merge(phrases: Iterable[Phrase], tempoBPM: Double): Phrase = {
     val notesByStartTime = CollectionUtils.mergeMultiMaps(phrases.toList*)(using getNotesByStartTimeNS)
     val phraseElements = ListBuffer[MusicalElement]()
     var activeNotes: List[MusicalElement] = List()
@@ -214,7 +227,7 @@ object Phrase {
     }
 
     require(activeNotes.isEmpty, "All active notes must be consumed")
-    Phrase().withMusicalElements(phraseElements)
+    new Phrase(tempoBPM = tempoBPM).withMusicalElements(phraseElements)
   }
 
   def addToPhraseElements(element: MusicalElement, phraseElements: ListBuffer[MusicalElement]): Unit = {

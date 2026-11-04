@@ -3,20 +3,23 @@ package genetic
 import cbr.MusicalCase
 import instruments.InstrumentType.{BASS, PIANO}
 import org.scalatest.flatspec.AnyFlatSpec
-import representation.{Blues, Jazz, Note, Phrase}
+import org.scalatest.matchers.should.Matchers
+import representation.{Blues, Jazz, MusicalElement, Note, Phrase}
 
 import scala.concurrent.duration.SECONDS
 
-class MusicalCaseCrossoverOperatorTest extends AnyFlatSpec {
+class MusicalCaseCrossoverOperatorTest extends AnyFlatSpec with Matchers {
   private val NoteLengthNS: BigInt = SECONDS.toNanos(1)
 
   /** One note of a second each, back to back */
-  private def phraseOf(pitches: Seq[Int]): Phrase = Phrase().withMusicalElements(
-    pitches.zipWithIndex.map { case (pitch, idx) =>
-      Note(midiPitch = pitch, durationNS = NoteLengthNS, startTimeNS = NoteLengthNS * idx)
-    })
+  private def phraseOf(pitches: Seq[Int], tempoBPM: Double = MusicalElement.DEFAULT_TEMPO_BPM): Phrase =
+    new Phrase(tempoBPM = tempoBPM).withMusicalElements(
+      pitches.zipWithIndex.map { case (pitch, idx) =>
+        Note(midiPitch = pitch, durationNS = NoteLengthNS, startTimeNS = NoteLengthNS * idx)
+      })
 
-  private def caseOf(pitches: Seq[Int]): MusicalCase = MusicalCase(PIANO(1), Jazz, phraseOf(pitches))
+  private def caseOf(pitches: Seq[Int], tempoBPM: Double = MusicalElement.DEFAULT_TEMPO_BPM): MusicalCase =
+    MusicalCase(PIANO(1), Jazz, phraseOf(pitches, tempoBPM))
 
   private def notesOf(case1: MusicalCase): List[Note] = case1.phrase.musicalElements.collect { case n: Note => n }
 
@@ -81,5 +84,50 @@ class MusicalCaseCrossoverOperatorTest extends AnyFlatSpec {
     assert(crossover.crossOver(firstParent, blip).phrase.nonEmpty)
     assert(crossover.crossOver(silence, secondParent).phrase.isEmpty)
     assert(crossover.crossOver(firstParent, silence).phrase.nonEmpty)
+  }
+
+  // The note times are nanoseconds, which is what is heard; the tempo only says how to read them back as beats (#34)
+  it should "give the child the tempo of the parents instead of the default one" in {
+    val child = crossover.crossOver(caseOf(Seq(60, 61, 62, 63, 64), tempoBPM = 90), caseOf(Seq(70, 71, 72, 73, 74), tempoBPM = 90))
+
+    child.phrase.tempoBPM shouldBe 90.0
+    pitchesOf(child) shouldBe List(60, 71, 62, 73, 64)
+  }
+
+  it should "give the child the tempo of the first parent when the parents have different tempos, and keep the times" in {
+    val slow = caseOf(Seq(60, 61, 62, 63, 64), tempoBPM = 90)
+    val fast = caseOf(Seq(70, 71, 72, 73, 74), tempoBPM = 150)
+
+    val child = crossover.crossOver(slow, fast)
+    val swapped = crossover.crossOver(fast, slow)
+
+    child.phrase.tempoBPM shouldBe 90.0
+    swapped.phrase.tempoBPM shouldBe 150.0
+    // nanoseconds are what is heard: the segments of the second parent are not stretched to the first parent's tempo
+    for (c <- List(child, swapped)) {
+      notesOf(c).map(_.startTimeNS) shouldBe (0 until 5).map(NoteLengthNS * _).toList
+      c.phrase.getDurationNS shouldBe NoteLengthNS * 5
+    }
+  }
+
+  it should "give the child the tempo of a polyphonic parent, which is merged first" in {
+    def polyphonicOf(tempoBPM: Double): MusicalCase = {
+      val voices = List(phraseOf(Seq(60, 61, 62, 63, 64), tempoBPM), phraseOf(Seq(36, 37, 38, 39, 40), tempoBPM))
+      MusicalCase(PIANO(1), Jazz, new Phrase(voices, polyphony = true, tempoBPM = tempoBPM))
+    }
+
+    crossover.crossOver(polyphonicOf(90), polyphonicOf(90)).phrase.tempoBPM shouldBe 90.0
+    crossover.crossOver(polyphonicOf(75), caseOf(Seq(70, 71, 72, 73, 74), tempoBPM = 90)).phrase.tempoBPM shouldBe 75.0
+  }
+
+  it should "keep the tempo of the first parent when a parent is too short to be cut or empty" in {
+    val blip = MusicalCase(PIANO(1), Jazz, new Phrase(List(Note(durationNS = 3)), tempoBPM = 75))
+    val silence = MusicalCase(PIANO(1), Jazz, new Phrase(tempoBPM = 60))
+    val parent = caseOf(Seq(70, 71, 72, 73, 74), tempoBPM = 90)
+
+    crossover.crossOver(blip, parent).phrase.tempoBPM shouldBe 75.0
+    crossover.crossOver(parent, blip).phrase.tempoBPM shouldBe 90.0
+    crossover.crossOver(silence, parent).phrase.tempoBPM shouldBe 60.0
+    crossover.crossOver(parent, silence).phrase.tempoBPM shouldBe 90.0
   }
 }
