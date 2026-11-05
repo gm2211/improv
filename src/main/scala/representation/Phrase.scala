@@ -127,6 +127,11 @@ object Phrase {
     }
   }
 
+  /**
+   * A monophonic phrase (chords where voices overlap, see [[mergePhrases]]) split back into voices: a polyphonic phrase
+   * with as many voices as its biggest chord. The voices and the result have the tempo and the key signature of
+   * `phrase`.
+   */
   def unmerge(phrase: Phrase): Phrase = {
     def elemMatch(e1: Option[MusicalElement], e2: MusicalElement): Boolean = e1.exists{ e11 =>
       (e11, e2) match {
@@ -170,8 +175,11 @@ object Phrase {
       }
     }
 
-    val phrases = phrasesElements.map(phraseElems => new Phrase(phraseElems.toList))
-    Phrase()
+    // the voices and the result keep the tempo and the key of `phrase` (the note times are nanoseconds, so only the
+    // label changes: it is what reads them back as beats), the inverse of mergePhrases (#37)
+    val phrases = phrasesElements.map(phraseElems =>
+      new Phrase(phraseElems.toList, tempoBPM = phrase.tempoBPM, keySignature = phrase.keySignature))
+    new Phrase(tempoBPM = phrase.tempoBPM, keySignature = phrase.keySignature)
       .withMusicalElements(phrases)
       .withPolyphony()
       .getOrElse(phrase)

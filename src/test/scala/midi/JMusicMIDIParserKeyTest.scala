@@ -5,7 +5,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import representation.KeySignature.{Major, Minor}
-import representation.{KeySignature, Phrase}
+import representation.{Chord, KeySignature, Phrase}
 
 import java.io.File
 import java.nio.file.{Files, Path}
@@ -117,6 +117,23 @@ class JMusicMIDIParserKeyTest extends AnyFlatSpec with Matchers with BeforeAndAf
       pitchedParts(parser) should not be empty
       parser.getMultiVoicePhrases(pitchedParts(parser).head) should not be empty
       checkAllIn(parser, expected)
+    }
+  }
+
+  "Unmerging a merged phrase of a file" should "keep the tempo and the key of the file (#37)" in {
+    // flowers-on-the-wall.mid: a single key signature event (2 flats, major) and a single tempo, 173 BPM
+    val parser = parserOfResource("flowers-on-the-wall.mid")
+    val tempo = parser.score.getTempo
+    tempo shouldBe 173.0 +- 0.5
+    val merged = pitchedParts(parser).flatMap(parser.getPhrases).filter(_.exists(_.isInstanceOf[Chord]))
+    merged should not be empty
+
+    merged.foreach { phrase =>
+      val unmerged = Phrase.unmerge(phrase)
+      (unmerged :: voicesOf(unmerged)).foreach { p =>
+        p.tempoBPM shouldBe tempo
+        p.keySignature shouldBe KeySignature(flats = 2, sharps = 0, Major)
+      }
     }
   }
 

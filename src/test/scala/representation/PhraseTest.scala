@@ -273,6 +273,73 @@ class PhraseTest extends AnyFlatSpec with Matchers {
     Phrase.mergePhrases(melody).keySignature shouldBe aMajor
   }
 
+  // Phrase.unmerge is the inverse of mergePhrases: it labels what it builds like the phrase it is given (#37). Its notes
+  // have names: unmerge (and addToPhraseElements) tell notes apart by name, accidental and octave, not by midiPitch
+  private def pitched(name: NoteName, octave: Int, pitch: Int, startSeconds: Int, seconds: Int): Note =
+    Note(name = name, octave = octave, midiPitch = pitch,
+      startTimeNS = SECONDS.toNanos(startSeconds), durationNS = SECONDS.toNanos(seconds))
+
+  /** C5 then D5 for a second each over C3 for two seconds, at `tempoBPM`, in `key`. */
+  private def namedTwoVoices(tempoBPM: Double, key: KeySignature): Phrase = {
+    val high = new Phrase(List(pitched(C, 5, 72, 0, 1), pitched(D, 5, 74, 1, 1)), tempoBPM = tempoBPM, keySignature = key)
+    val low = new Phrase(List(pitched(C, 3, 48, 0, 2)), tempoBPM = tempoBPM, keySignature = key)
+    new Phrase(List(high, low), polyphony = true, tempoBPM = tempoBPM, keySignature = key)
+  }
+
+  private def notesOf(phrase: Phrase): List[(Int, BigInt, BigInt)] =
+    phrase.musicalElements.flatMap {
+      case chord: Chord => chord.notes
+      case note: Note => List(note)
+      case _ => Nil
+    }.map(note => (note.midiPitch, note.getStartTimeNS, note.getDurationNS)).sortBy(n => (n._2, n._1))
+
+  "Unmerging a merged phrase" should "keep its tempo and key signature, on the result and on every voice" in {
+    for (tempo <- List(60.0, 90.0, 150.0, 200.0); key <- List(gMinor, aMajor)) {
+      val unmerged = Phrase.unmerge(Phrase.mergePhrases(namedTwoVoices(tempo, key)))
+
+      withClue(s"at $tempo BPM in $key: ") {
+        unmerged.polyphony shouldBe true
+        unmerged.tempoBPM shouldBe tempo
+        unmerged.keySignature shouldBe key
+        voicesOf(unmerged) should have size 2
+        voicesOf(unmerged).foreach { voice =>
+          voice.tempoBPM shouldBe tempo
+          voice.keySignature shouldBe key
+        }
+      }
+    }
+  }
+
+  it should "give back the notes of the voices, whatever the tempo: the times are nanoseconds" in {
+    for (tempo <- List(60.0, 90.0, 120.0, 200.0)) {
+      val merged = Phrase.mergePhrases(namedTwoVoices(tempo, aMajor))
+      val unmerged = Phrase.unmerge(merged)
+
+      withClue(s"at $tempo BPM: ") {
+        // the C3 of the two chords is one note again
+        voicesOf(unmerged).map(notesOf).sortBy(_.head._1) shouldBe List(
+          List((48, BigInt(0), BigInt(SECONDS.toNanos(2)))),
+          List((72, BigInt(0), BigInt(SECONDS.toNanos(1))), (74, BigInt(SECONDS.toNanos(1)), BigInt(SECONDS.toNanos(1)))))
+        notesOf(Phrase.mergePhrases(unmerged)) shouldBe notesOf(merged)
+        Phrase.mergePhrases(unmerged).tempoBPM shouldBe tempo
+        Phrase.mergePhrases(unmerged).keySignature shouldBe aMajor
+      }
+    }
+  }
+
+  it should "label the single voice of a phrase without chords with its tempo and key too" in {
+    val melody = new Phrase(
+      List(pitched(C, 4, 60, 0, 1), pitched(D, 4, 62, 1, 1), pitched(E, 4, 64, 2, 1)), tempoBPM = 75, keySignature = gMinor)
+    val unmerged = Phrase.unmerge(melody)
+
+    unmerged.tempoBPM shouldBe 75.0
+    unmerged.keySignature shouldBe gMinor
+    voicesOf(unmerged) should have size 1
+    voicesOf(unmerged).head.tempoBPM shouldBe 75.0
+    voicesOf(unmerged).head.keySignature shouldBe gMinor
+    notesOf(voicesOf(unmerged).head) shouldBe notesOf(melody)
+  }
+
   // A gap between two elements of a microsecond or less is jMusic's rounding noise, not a rest (#39)
   private def addAll(elements: MusicalElement*): List[MusicalElement] = {
     val phraseElements = ListBuffer[MusicalElement]()
