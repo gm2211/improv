@@ -382,6 +382,14 @@ case class Phrase(
   def withPolyphony(polyphony: Boolean = true): Option[Phrase] =
     Option.when(! polyphony || canHavePolyphony)(myCopy(polyphony = polyphony))
 
+  /** The phrase in `keySignature`, and every voice of a polyphonic phrase with it. */
+  def withKeySignature(keySignature: KeySignature): Phrase =
+    if (polyphony)
+      myCopy(
+        musicalElements = musicalElements.map { case voice: Phrase => voice.withKeySignature(keySignature); case e => e },
+        keySignature = keySignature)
+    else myCopy(keySignature = keySignature)
+
   def withMusicalElements(musicalElements: Iterable[MusicalElement]) =
     myCopy(musicalElements = musicalElements.toList)
 

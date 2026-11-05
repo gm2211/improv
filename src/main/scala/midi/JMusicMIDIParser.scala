@@ -28,12 +28,15 @@ object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMI
    */
   override def apply(filename: String) = {
     val score: Score = getScore(filename)
-    new JMusicMIDIParser(score, PhraseSegmenter.byBars(MidiTimeSignature.read(filename), score.getTempo))
+    new JMusicMIDIParser(
+      score,
+      PhraseSegmenter.byBars(MidiTimeSignature.read(filename), score.getTempo),
+      MidiKeySignature.read(filename))
   }
 
   def apply(phraseSegmenter: PhraseSegmenter)(filename: String) = {
     val score: Score = getScore(filename)
-    new JMusicMIDIParser(score, phraseSegmenter)
+    new JMusicMIDIParser(score, phraseSegmenter, MidiKeySignature.read(filename))
   }
 
   private def getScore(filename: String): Score = {
@@ -42,6 +45,12 @@ object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMI
     // jMusic keeps one tempo per score, the last tempo event it read (or a garbled one, see MidiTempo): use the tempo
     // the file spends the longest time in, which is what the phrase length in seconds is measured against (#23)
     MidiTempo.longestLastingBPM(filename).foreach(score.setTempo)
+    // and one key, the last key signature event: use the key the file spends the longest time in, the key of a whole
+    // part (a phrase cut out of it gets the key of its own stretch of the piece, see JMusicMIDIParser, #41)
+    MidiKeySignature.longestLasting(filename).foreach { key =>
+      score.setKeySignature(if (key.sharps > 0) key.sharps else -key.flats)
+      score.setKeyQuality(if (key.quality == Minor) 1 else 0)
+    }
     score
   }
 
@@ -51,12 +60,32 @@ object JMusicMIDIParser extends MIDIParserFactory with Function[String, JMusicMI
   def isDrumPart(part: jmData.Part): Boolean = part.getChannel == DRUM_CHANNEL
 }
 
+/**
+ * @param keySignatures the key signature events of the file (see [[MidiKeySignature]]). With events, every phrase cut out
+ *                      of a part is in the key that lasts longest in its own stretch of the piece, so the phrases before
+ *                      a modulation keep the key they are in (#41); without, every phrase has the key of the score.
+ */
 class JMusicMIDIParser(
   val score: jmData.Score,
-  val phraseSegmenter: PhraseSegmenter) extends MIDIParser {
+  val phraseSegmenter: PhraseSegmenter,
+  val keySignatures: Seq[KeySignatureChange] = Nil) extends MIDIParser {
 
   def split(phrase: Phrase): Iterable[Phrase] = {
-    phraseSegmenter.segment(phrase)
+    val pieces = phraseSegmenter.segmentWithOffsets(phrase)
+    if (keySignatures.isEmpty) pieces.map(_._2)
+    else pieces.map { case (offsetNS, piece) => piece.withKeySignature(keyOf(offsetNS, offsetNS + piece.getDurationNS)) }
+  }
+
+  /**
+   * The key that lasts longest from `fromNS` to `untilNS`. The events are in beats and become time with the tempo of
+   * the score, the one tempo that every note time of the piece and every bar line were converted with.
+   */
+  private def keyOf(fromNS: BigInt, untilNS: BigInt): KeySignature = {
+    val tempoBPM = BigDecimal(score.getTempo)
+    KeySignatureChange.longestIn(
+      keySignatures,
+      MusicalElement.toBPM(fromNS, tempoBPM),
+      MusicalElement.toBPM(untilNS, tempoBPM))
   }
 
   override def getAllMultiVoicePhrases: List[List[Phrase]] = {
@@ -156,7 +185,9 @@ object JMusicParserUtils {
 
   /**
    * The key signature of the score the part belongs to: jMusic's MIDI reader keeps one per score, the last key signature
-   * event it read (a file with a key change gets its last key for the whole piece), and C major when there is none.
+   * event it read, which `JMusicMIDIParser(filename)` replaces with the key the file spends the longest time in (#41);
+   * C major when there is none. A phrase cut out of a part gets the key of its own stretch of the piece instead (see
+   * [[JMusicMIDIParser]]).
    * Both the signature and the quality are read from the score: the reader never sets the quality of a part, which stays
    * at jMusic's "undefined" value (`Integer.MIN_VALUE`), so reading it there made every key a minor one.
    */
